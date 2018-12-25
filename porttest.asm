@@ -6,10 +6,20 @@ include "lib/strap.asm"
 _splash_screen_data:
 	defb 0ffh
 
-	defb 002h, 00bh, 083h
-	defb "PORT TEST", 000h
+	defb 002h, 00dh, 083h
+	defb "HP 4952A", 000h
+	defb 003h, 007h, 083h
+	defb "Open Source Software", 000h
 
-	defb 000h							;; End of Screen Data
+	defb 007h, 00ch, 083h
+	defb "Port Test", 000h
+
+	defb 00ch, 008h, 083h
+	defb "Hacking the 4952", 000h
+	defb 00dh, 009h, 083h
+	defb "on hackaday.io", 000h
+
+	defb 000h			;; End of Screen Data
 
 _splash_menu_data:
 	defb "Re-!BERT!Remote!Mass !Port!Self~"
@@ -30,10 +40,10 @@ _p_mm_run:
 _p_mm_exam:
 	defw 013cdh			;; Ordinal 12eh Examine Data
 _p_mm_next1:
-	defw _p_main_menu_page_two			;; Next Page
+	defw _p_main_menu_page_two	;; Next Page
 
 _p_main_menu_page_two:
-	defw _splash_menu_data	;; Second Page Menu Data
+	defw _splash_menu_data		;; Second Page Menu Data
 _p_mm_reset:
 	defw 0bb1ah			;; Entry Point for Re-Set
 _p_mm_bert:
@@ -47,22 +57,23 @@ _p_mm_launch_app:
 _p_mm_selftest:
 	defw 0136fh			;; Ordinal 12ah Self Test
 _p_mm_next2:
-	defw _p_main_menu_page_one			;; Next Page
+	defw _p_main_menu_page_one	;; Next Page
 
 _launch_app:
 	ld a, 006h
 	call 00e60h			; Page in 6
-	ld hl,0aa00h		; Copy application to Work RAM
-	ld de,02160h		;
-	ld bc,01e9fh		; Fixme: update to size of main code
+	ld hl,0aa00h			; Copy application to Work RAM
+	ld de,_code_start		;
+	ld bc,_code_end-_code_start	;
 	ldir				;
-	jp _app_main		; Run the application
+	jp _app_main			; Run the application
 
 ;; End of menu section
 
 ;; Main Application
-	org 2160h
+	org 2200h
 	seek 0a00h
+_code_start:
 
 _cnt_frames:
 	defw 00800h
@@ -75,7 +86,8 @@ _str_finished:
 
 _str_running:
 	defb "Running...", 000h
-	
+
+; This table has the Y, X, and Port number to display
 _screen_porttest:
 	defb 001h, 001h, 000h
 	defb 001h, 006h, 001h
@@ -116,7 +128,7 @@ _screen_porttest:
 	defb 00bh, 015h, 0a3h
 	defb 00bh, 01ah, 0cdh
 
-	defb 000h							;; End of Data
+	defb 000h				;; End of Data
 
 _str_hex:
 	defb " %x ", 000h
@@ -127,7 +139,7 @@ _str_exit:
 _app_main:
 	call _clear_screen
 
-	ld a, 0abh				; Inverse Text
+	ld a, 0abh				; Dim Inverse Text
 	ld (_text_attr), a
 
 	ld hl, _screen_porttest
@@ -174,7 +186,7 @@ _exit_prompt:
 	call _writestring
 
 _wait_exit:
-	call _getkey_cooked
+	call _getkey_wait
 	cp 'y'
 	jr z, _real_exit
 	cp 'Y'
@@ -194,12 +206,8 @@ _real_exit:
 
 
 _main_loop:
-	
-	ld bc,01000h			; Delay 2048 delay counts
-	call _delay
-
 	call _keyscan
-	call _getkey_raw
+	call _getkey_nowait
 	cp _key_exit
 	jr z, _exit_prompt
 
@@ -210,22 +218,22 @@ _main_loop:
 _next_port:
 	ld a, (hl)
 	cp 000h
-	jr z, _main_loop
+	jr z, _main_loop			; While(Y != 0) {
 	inc a
-	ld (_cur_y), a
+	ld (_cur_y), a				; Set Y Coordinate + 1
 	inc hl		
 	ld a, (hl)
-	ld (_cur_x), a
+	ld (_cur_x), a				; Set X Coordinate
 	inc hl		
 
-	ld a, (hl)
+	ld a, (hl)				; Get Port Number
 	inc hl
 	push hl
 
-	ld c, a
+	ld c, a					; Read Port
 	in a,(c)
 
-	ld d, 000h
+	ld d, 000h				; Print Value
 	ld e, a
 	push de
 
@@ -233,16 +241,15 @@ _next_port:
 	push hl
 	call _printf
 
-	pop hl
+	pop hl					; And move on.
 	jp _next_port
-
-	jr _main_loop
 
 include "LIB/delay.asm"
 include "LIB/screen.asm"
 include "LIB/printf.asm"
 include "LIB/keyb.asm"
 
+_code_end:
 ;; End of Main Application
 
 ;; Fill to end of file

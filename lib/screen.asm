@@ -53,6 +53,7 @@ _writechar:
 	jr z,_clear_screen		;
 	cp 008h					; Backspace?
 	jr z,_backspace			;
+_writechar_raw:
 	push de					; Store clobbered registers
 	push hl					;
 	push af					;

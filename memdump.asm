@@ -12,7 +12,7 @@ _splash_screen_data:
 	defb "Open Source Software", 000h
 
 	defb 007h, 009h, 083h
-	defb "Keyboard Test", 000h
+	defb "Memory Explorer", 000h
 
 	defb 00ch, 008h, 083h
 	defb "Hacking the 4952", 000h
@@ -68,100 +68,154 @@ _launch_app:
 	ldir				;
 	jp _app_main			; Run the application
 
-;; End of menu section
-
 ;; Main Application
 	org 2200h
 	seek 0a00h
 _code_start:
-
-_str_frames:
-	defb "%d %d    ", 000h
-	
-_str_finished:
-	defb "Goodbye.", 000h
-
-_str_ready:
-	defb "Ready.\r\n", 000h
-	
-_str_hex:
-	defb "%x", 000h
-
-_str_blank:
-	defb "  ", 000h
-
-_str_exit:
-	defb "Are you sure you wish to exit?", 000h
-
-_str_pos:
-	defb "%d, %d ", 000h
-
-_spc_keys:
-	ld a, 062h				; HexaText
-	ld (_text_attr), a
-
-	call _writechar_raw
-
-	ld a, 083h				; Normal Text
-	ld (_text_attr), a
-
-	jr _main_loop
-
 _app_main:
+_redraw:
 	call _clear_screen
 
-	ld a, 083h				; Normal Text
-	ld (_text_attr), a
-	ld a, 001h				; Line 1 (Top)
+	call _read_page
+
+	ld de, _mem_buffer
+	xor a
+_next_row:
+	ld c, a
+	inc a					; Set Y coordinate
 	ld (_cur_y), a
 	ld a, 001h				; Column 1 (Left)
 	ld (_cur_x), a
+	ld a, 083h				; Normal Text
+	ld (_text_attr), a
 
-	ld hl, _str_ready
+	ld b, 0					; Print row starting charnum
+	push bc
+	ld hl, _str_row
+	push hl
+	call _printf
+
+	ld a, 080h				; Border Text
+	ld (_text_attr), a
+	ld a, 09ch				; Right Edge
+	call _writechar_raw
+
+	ld a, (_cur_attr)			; Selected Attribute Value
+	ld (_text_attr), a
+
+	ld b, 16
+_next_char:
+	ld a, (de)
+	call _writechar_raw
+	inc de
+	djnz _next_char
+
+	ld a, 080h				; Border Text
+	ld (_text_attr), a
+	ld a, 09bh				; Left Edge
+	call _writechar_raw
+
+	ld a, (_cur_y)				; Repeat for 16 rows
+	cp 010h
+	jr c, _next_row
+
+	ld a, 083h				; Normal Text
+	ld (_text_attr), a
+	ld a, 001h				; Line 1
+	ld (_cur_y), a
+	ld a, 019h				; Column 25
+	ld (_cur_x), a
+
+	ld a, (_cur_bank)			; Print current bank
+	ld b, 0
+	ld c, a
+	push bc
+	ld hl, _str_hex
+	push hl
+	call _printf
+
+	ld a, (_cur_page)			; Print current page
+	ld b, 0
+	ld c, a
+	push bc
+	ld hl, _str_hex
 	push hl
 	call _printf
 
 _main_loop:
-	ld hl, (_cur_x)
-	push hl
-
-	ld a, (_cur_x)
-	ld l, a
-	push hl
-
-	ld a, (_cur_y)
-	ld l, a
-	push hl
-
-	ld a, 001h				; Line 1 (Top)
-	ld (_cur_y), a
-	ld a, 010h				; Column 1 (Left)
-	ld (_cur_x), a
-	
-	ld hl, _str_pos
-	push hl
-	call _printf
-	
-	pop hl
-	ld (_cur_x), hl
 
 	call _getkey_wait
 
-	cp 0ffh					; Cooked shouldn't return this ever.
-	jr z, _main_loop
+	cp _key_up
+	jr z, _next_page
+	cp _key_dn
+	jr z, _prev_page
 
-	cp 000h
-	jr z, _main_loop
+	cp _key_rt
+	jr z, _next_10page
+	cp _key_lt
+	jr z, _prev_10page
+
+	cp _key_f1
+	jr z, _set_norm
+
+	cp _key_f2
+	jr z, _set_hex
+
+	cp _key_f5
+	jr z, _prev_bank
+
+	cp _key_f6
+	jr z, _next_bank
 
 	cp _key_exit
 	jr z, _exit_prompt
 
-	bit 7,a
-	jr nz, _spc_keys
-
-	call _writechar_raw
-
 	jr _main_loop
+	
+_set_norm:
+	ld a, 083h
+	ld (_cur_attr), a
+	jp _redraw
+
+_set_hex:
+	ld a, 022h
+	ld (_cur_attr), a
+	jp _redraw
+
+_next_bank:
+	ld a,(_cur_bank)
+	inc a
+	ld (_cur_bank),a
+	jp _redraw
+_prev_bank:
+	ld a,(_cur_bank)
+	dec a
+	ld (_cur_bank),a
+	jp _redraw
+
+_next_page:
+	ld a,(_cur_page)
+	inc a
+	ld (_cur_page),a
+	jp _redraw
+_prev_page:
+	ld a,(_cur_page)
+	dec a
+	ld (_cur_page),a
+	jp _redraw
+
+_next_10page:
+	ld a,(_cur_page)
+	add 010h
+	ld (_cur_page),a
+	jp _redraw
+_prev_10page:
+	ld a,(_cur_page)
+	sub 010h
+	ld (_cur_page),a
+	jp _redraw
+
 
 _exit_prompt:
 	call _clear_screen
@@ -176,6 +230,7 @@ _exit_prompt:
 	ld hl, _str_exit
 	call _writestring
 
+
 _wait_exit:
 	call _getkey_wait
 	cp 'y'
@@ -184,9 +239,9 @@ _wait_exit:
 	jr z, _real_exit
 
 	cp 'n'
-	jr z, _app_main
+	jp z, _app_main
 	cp 'N'
-	jr z, _app_main
+	jp z, _app_main
 
 	jr _wait_exit
 
@@ -196,10 +251,46 @@ _real_exit:
 	jp 014d5h				; Return to main menu.
 
 
-include "lib/delay.asm"
+_read_page:
+;	di
+;	ld a,(_cur_bank)		; access desired memory bank
+;	out (020h),a			;
+
+	ld l, 0				; Copy data to our buffer
+	ld a, (_cur_page)
+	ld h, a
+	ld de, _mem_buffer
+	ld bc, 00100h
+	ldir
+
+;	out (020h),a			; restore previous bank
+;	ei
+	ret
+
 include "lib/screen.asm"
 include "lib/printf.asm"
 include "lib/keyb.asm"
+
+_str_exit:
+	defb "Are you sure you wish to exit?", 000h
+
+_str_row:
+	defb "   %x ", 000h
+	
+_str_hex:
+	defb "%x", 000h
+
+_cur_attr:
+	defb 083h
+	
+_cur_page:
+	defb 000h
+
+_cur_bank:
+	defb 000h
+
+_mem_buffer:
+	defs 256, 000h
 
 _code_end:
 ;; End of Main Application

@@ -63,8 +63,8 @@ _launch_app:
 	ld a, 006h
 	call 00e60h			; Page in 6
 	ld hl,0aa00h			; Copy application to Work RAM
-	ld de,02160h			;
-	ld bc,01e9fh			; Fixme: update to size of main code
+	ld de,_code_start		;
+	ld bc,_code_end-_code_start	;
 	ldir				;
 	jp _app_main			; Run the application
 
@@ -72,6 +72,7 @@ _launch_app:
 ;; Main Application
 	org 2160h
 	seek 0a00h
+_code_start:
 
 _cnt_frames:
 	defw 00800h
@@ -166,13 +167,7 @@ _app_main:
 
 _main_loop:
 	
-	call _getkey_cooked
-
-	cp 0ffh					; Cooked shouldn't return this ever.
-	jr z, _main_loop
-
-	cp 000h
-	jr z, _main_loop
+	call _getkey_wait
 
 	cp _key_exit
 	jr z, _exit_prompt
@@ -193,7 +188,7 @@ _exit_prompt:
 	call _writestring
 
 _wait_exit:
-	call _getkey_cooked
+	call _getkey_wait
 	cp 'y'
 	jr z, _real_exit
 	cp 'Y'
@@ -219,6 +214,7 @@ include "lib/keyb.asm"
 gfx_screen:
 include "lib/logo.asm"
 
+_code_end:
 ;; End of Main Application
 
 ;; Fill to end of file

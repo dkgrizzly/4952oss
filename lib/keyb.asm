@@ -1,11 +1,12 @@
 _keyscan:
-	push hl
-	push de
-	push af
+	push hl				; HL is used to index the keystate array
+	push de				; D is the Row buffer for the keyboard matrix
+	push bc				; E is the current row's bits
+	push af				; B is the column counter
 
 	ld hl, _keystates
 
-	ld a, 001h				; Row to scan
+	ld a, 001h			; Row to scan
 _k_scan_row:
 	ld d, a
 	out (0d0h), a			; Set Row Bits
@@ -13,169 +14,303 @@ _k_scan_row:
 	nop
 	nop
 	nop
+	nop
+	nop
 
 	in a, (0d0h)			; Get Col Bits
-	ld (hl), a
-	inc hl
 
-	ld a, d
+	ld b, 8
+_k_store_key:
+	ld e, a				; store the next columns bits...
+	and 1				; extract this column
+	sla (hl)			; shift the state over
+	or (hl)				; OR it with the current state
+	and 00fh
+	ld (hl), a			; save it back to the array
+	inc hl				; move on to the next array location
+	ld a, e				; restore the remaining bits
+	srl a				; take one down, pass it around
+	djnz _k_store_key		; repeat for this entire key row
+	
+	ld a, d				; read the next row until we are done
 	add a
 	jr nz, _k_scan_row
-
-	pop af
+	
+	pop af				; restore all the registers we walked on
+	pop bc
 	pop de
 	pop hl
 	ret
 
-; Wait for a key to be pressed and then released.
-_getkey_cooked:
-	push bc
-	ld b, 0ffh
-_gk_loop1:
+_getkey_wait:
 	call _keyscan
-
-	call _getkey_raw			; loop until we get a key
-	cp b
-	jr z, _gk_loop1
-	ld b, a
-_gk_loop2:
-	call _keyscan
-
-	call _getkey_raw			; and loop until it is released
-	cp 0ffh
-	jr nz, _gk_loop2
-	ld a, b
-	pop bc
+	call _getkey_nowait
+	cp _key_none
+	jr z, _getkey_wait
 	ret
 
-_getkey_raw:
+_getkey_nowait:
 	push hl
 	push de
 	push bc
 
-
-	ld hl, _keystates + 00006h
-	ld a, (hl)
-	bit 1,a
-	jr nz, _gk_decode_c
-	bit 2,a
-	jr nz, _gk_decode_s
-	ld de, _keymatrix_u
-	jr _gk_first_row
-
-_gk_decode_c:
-	ld de, _keymatrix_c
-	jr _gk_first_row
-
-_gk_decode_s:
-	ld de, _keymatrix_s
-
-_gk_first_row:
-	ld hl, _keystates
-	ld b, 008h
-_gk_next_row:
-	ld a, (hl)
-	inc hl
+	ld a, (_keystates + _scancode_shift)			; C = (Shift << 1) | Ctrl
+	rr a
+	ld a, (_keystates + _scancode_ctrl)
+	rl a
+;	and 3							; optimization
 	ld c, a
 
-	ld a, 001h
-_gk_next_col:
-	push af
-	ex de, hl
-	and c
-	jr nz, _gk_decode
+	ld de, _keymatrix
+	ld hl, _keystates
+	ld b, 64
+_gk_next_key:
+	ld a, (hl)
+	cp 007h							; Debounce the key press
+	jr c, _gk_skip_code					; Not yet pressed for 3 consecutive reads
+
+	jr z, _gk_decode					; Key was pressed for 3 consecutive reads
+
+	bit 0, a						; Key is still held, do nothing
+	jr nz, _gk_skip_code
+
+	and 00fh						; Debounce the key release
+	ld (hl), a						; 
+
 _gk_skip_code:
-	ex de, hl
-	pop af
+	inc hl							; Otherwise keep going until
+	inc de							; we have checked all of them
+	djnz _gk_next_key
 
-	inc de
-	add a
-	jr nz,_gk_next_col
-
-	djnz _gk_next_row
-
-	or 0ffh							; No key pressed
+	or _key_none						; No key pressed
 	jr _gk_done
 
 _gk_decode:
-	ld a, (hl)
-	or a
-	cp 0ffh
-	jr z, _gk_skip_code
-	cp 0feh
-	jr z, _gk_skip_code
-	cp 0fdh
+	ex de, hl						; Swap to the matrix
+	ld a, (hl)						; and retrieve the keycode
+	ex de, hl
+
+	cp _key_none						; We don't report invalid
+	jr z, _gk_skip_code					; or modifier keys
+	cp _key_ctrl						; most applications want
+	jr z, _gk_skip_code					; just the ascii characters
+	cp _key_shift
 	jr z, _gk_skip_code
 
-	pop bc							; Toss out our column number
+	bit 7, a						; Special characters are not
+	jr nz, _gk_done						; modified here
 
+	bit 0, c						; Handle Ctrl-[key]
+	jr nz, _gk_ctrl
+	
+	bit 1, c						; Handle Shift-[key]
+	jr nz, _gk_shift
+	
 _gk_done:
 	pop bc
 	pop de
 	pop hl
 	ret
 
-_key_f1: equ 0e0h
-_key_f2: equ 0e1h
-_key_f3: equ 0e2h
-_key_f4: equ 0e3h
-_key_f5: equ 0e4h
-_key_f6: equ 0e5h
-_key_f7: equ 0e6h
-_key_f8: equ 0e7h
-_key_f9: equ 0e8h
-_key_f10: equ 0e9h
-_key_f11: equ 0eah
-_key_f12: equ 0ebh
+_gk_ctrl:
+	cp 030h							; The outlier
+	jr z, _gk_ctrl_0
+	bit 5, b						; Only modify valid ctrl-sequences
+	jr z, _gk_done
+_gk_ctrl_0:
+	and 01fh
+	jr _gk_done
 
-_key_more: equ 0efh
-_key_help: equ 0edh
+_gk_shift:
+	cp 040h							; Alpha & @ get bit 5 inverted
+	jr c, _gk_shift_alpha
+	cp 030h
+	jr z, _gk_shift_0					; Zero becomes underscore
+	jr c, _gk_shift_num					; 1 thru ? become ! thru /
 
-_key_exit: equ 0ech
-_key_halt: equ 0eeh
+	jr _gk_done
 
-_key_up: equ 0f6h
-_key_dn: equ 0f7h
-_key_lt: equ 0f8h
-_key_rt: equ 0f9h
+_gk_shift_num:
+	xor 010h
+	jr _gk_done
 
-_key_pgup: equ 0f4h
-_key_pgdn: equ 0f5h
-_key_home: equ 0f2h
-_key_end: equ 0f3h
+_gk_shift_alpha:
+	xor 020h
+	jr _gk_done
 
-_key_shift: equ 0fdh
-_key_ctrl: equ 0feh
+_gk_shift_0:
+	ld a, _key_underscore
+	jr _gk_done
+
+_key_a:			equ 'a'
+_key_b:			equ 'b'
+_key_c:			equ 'c'
+_key_d:			equ 'd'
+_key_e:			equ 'e'
+_key_f:			equ 'f'
+_key_g:			equ 'g'
+_key_h:			equ 'h'
+_key_i:			equ 'i'
+_key_j:			equ 'j'
+_key_k:			equ 'k'
+_key_l:			equ 'l'
+_key_m:			equ 'm'
+_key_n:			equ 'n'
+_key_o:			equ 'o'
+_key_p:			equ 'p'
+_key_q:			equ 'q'
+_key_r:			equ 'r'
+_key_s:			equ 's'
+_key_t:			equ 't'
+_key_u:			equ 'u'
+_key_v:			equ 'v'
+_key_w:			equ 'w'
+_key_x:			equ 'x'
+_key_y:			equ 'y'
+_key_z:			equ 'z'
+
+_key_underscore:	equ '_'
+
+_key_f1:		equ 0e0h
+_key_f2:		equ 0e1h
+_key_f3:		equ 0e2h
+_key_f4:		equ 0e3h
+_key_f5:		equ 0e4h
+_key_f6:		equ 0e5h
+_key_f7:		equ 0e6h
+_key_f8:		equ 0e7h
+_key_f9:		equ 0e8h
+_key_f10:		equ 0e9h
+_key_f11:		equ 0eah
+_key_f12:		equ 0ebh
+
+_key_more:		equ 0efh
+_key_help:		equ 0edh
+
+_key_exit:		equ 0ech
+_key_halt:		equ 0eeh
+_key_enter:		equ 0fah
+
+_key_up:		equ 0f6h
+_key_dn:		equ 0f7h
+_key_lt:		equ 0f8h
+_key_rt:		equ 0f9h
+
+_key_pgup:		equ 0f4h
+_key_pgdn:		equ 0f5h
+_key_home:		equ 0f2h
+_key_end:		equ 0f3h
+
+_key_shift:		equ 0fdh
+_key_ctrl:		equ 0feh
+_key_none:		equ 0ffh
+
+_scancode_null:		equ 000h
+_scancode_caret:	equ 001h
+_scancode_rightbracket:	equ 002h
+_scancode_backslash:	equ 003h
+_scancode_leftbracket:	equ 004h
+_scancode_z:		equ 005h
+_scancode_y:		equ 006h
+_scancode_x:		equ 007h
+_scancode_w:		equ 008h
+_scancode_v:		equ 009h
+_scancode_u:		equ 00ah
+_scancode_t:		equ 00bh
+_scancode_s:		equ 00ch
+_scancode_r:		equ 00dh
+_scancode_q:		equ 00eh
+_scancode_p:		equ 00fh
+
+_scancode_o:		equ 010h
+_scancode_n:		equ 011h
+_scancode_m:		equ 012h
+_scancode_l:		equ 013h
+_scancode_k:		equ 014h
+_scancode_j:		equ 015h
+_scancode_i:		equ 016h
+_scancode_h:		equ 017h
+_scancode_g:		equ 018h
+_scancode_f:		equ 019h
+_scancode_e:		equ 01ah
+_scancode_d:		equ 01bh
+_scancode_c:		equ 01ch
+_scancode_b:		equ 01dh
+_scancode_a:		equ 01eh
+_scancode_at:		equ 01fh
+
+_scancode_slash:	equ 020h
+_scancode_period:	equ 021h
+_scancode_minus:	equ 022h
+_scancode_comma:	equ 023h
+_scancode_semicolon:	equ 024h
+_scancode_colon:	equ 025h
+_scancode_9:		equ 026h
+_scancode_8:		equ 027h
+_scancode_7:		equ 028h
+_scancode_6:		equ 029h
+_scancode_5:		equ 02ah
+_scancode_4:		equ 02bh
+_scancode_3:		equ 02ch
+_scancode_2:		equ 02dh
+_scancode_1:		equ 02eh
+_scancode_0:		equ 02fh
+
+_scancode_space:	equ 030h
+_scancode_ctrl:		equ 031h
+_scancode_shift:	equ 032h
+_scancode_enter:	equ 033h
+_scancode_rt:		equ 034h
+_scancode_lt:		equ 035h
+_scancode_dn:		equ 036h
+_scancode_up:		equ 037h
+_scancode_more:		equ 038h
+_scancode_f6:		equ 039h
+_scancode_f5:		equ 03ah
+_scancode_f4:		equ 03bh
+_scancode_f3:		equ 03ch
+_scancode_f2:		equ 03dh
+_scancode_f1:		equ 03eh
+_scancode_exit:		equ 03fh
+
+_keystate_up:		equ 000h
+_keystate_down:		equ 001h
+_keystate_lastup:	equ 000h
+_keystate_lastdown:	equ 002h
+_keystate_pressed:	equ 007h
+_keystate_held:		equ 00fh
+_keystate_released:	equ 008h
 
 _keystates:
-	defs 8, 000h
+	defs 64, 000h
 
-_keymatrix_u:
+_keymatrix:
+;_keymatrix_u:
 	defb 080h,  '^',  ']', '\\',  '[',  'z',  'y',  'x'		; 01
-	defb  'w',  'v',  'u',  't',  's',  'r',  'q',  'p' 	; 02
+	defb  'w',  'v',  'u',  't',  's',  'r',  'q',  'p'		; 02
 	defb  'o',  'n',  'm',  'l',  'k',  'j',  'i',  'h'		; 04
 	defb  'g',  'f',  'e',  'd',  'c',  'b',  'a',  '@'		; 08
 	defb  '/',  '.',  '-',  ',',  ';',  ':',  '9',  '8'		; 10
 	defb  '7',  '6',  '5',  '4',  '3',  '2',  '1',  '0'		; 20
-	defb  ' ', 0feh, 0fdh, 00ah, 0f9h, 0f8h, 0f7h, 0f6h		; 40
+	defb  ' ', 0feh, 0fdh, 0fah, 0f9h, 0f8h, 0f7h, 0f6h		; 40
 	defb 0efh, 0e5h, 0e4h, 0e3h, 0e2h, 0e1h, 0e0h, 0ech		; 80
 
-_keymatrix_s:
-	defb 080h,  '~',  '}',  '|',  '{',  'Z',  'Y',  'X'		; 01
-	defb  'W',  'V',  'U',  'T',  'S',  'R',  'Q',  'P' 	; 02
-	defb  'O',  'N',  'M',  'L',  'K',  'J',  'I',  'H'		; 04
-	defb  'G',  'F',  'E',  'D',  'C',  'B',  'A',  '`'		; 08
-	defb  '/',  '>',  '=',  '<',  '+',  '*',  ')',  '('		; 10
-	defb 027h,  '&',  '%',  '$',  '#',  '"',  '!',  '_'		; 20
-	defb  ' ', 0feh, 0fdh, 00ah, 0f9h, 0f8h, 0f7h, 0f6h		; 40
-	defb 0efh, 0ebh, 0eah, 0e9h, 0e8h, 0e7h, 0e6h, 0ech		; 80
-
-_keymatrix_c:
-	defb 080h, 01eh, 01dh, 01ch, 01bh, 01ah, 019h, 018h		; 01
-	defb 017h, 016h, 015h, 014h, 013h, 012h, 011h, 010h 	; 02
-	defb 00fh, 00eh, 00dh, 00ch, 00bh, 00ah, 009h, 008h		; 04
-	defb 007h, 006h, 005h, 004h, 003h, 002h, 001h, 000h		; 08
-	defb 01fh, 0ffh, 0ffh, 0ffh, 0ffh, 0ffh, 0ffh, 0ffh		; 10
-	defb 0ffh, 0ffh, 0ffh, 0ffh, 0ffh, 0ffh, 0ffh, 0ffh		; 20
-	defb 0a0h, 0feh, 0fdh, 00ah, 0f3h, 0f2h, 0f5h, 0f4h		; 40
-	defb 0edh, 0e5h, 0e4h, 0e3h, 0e2h, 0e1h, 0e0h, 0eeh		; 80
+;_keymatrix_s:
+;	defb 080h,  '~',  '}',  '|',  '{',  'Z',  'Y',  'X'		; 01
+;	defb  'W',  'V',  'U',  'T',  'S',  'R',  'Q',  'P'		; 02
+;	defb  'O',  'N',  'M',  'L',  'K',  'J',  'I',  'H'		; 04
+;	defb  'G',  'F',  'E',  'D',  'C',  'B',  'A',  '`'		; 08
+;	defb  '/',  '>',  '=',  '<',  '+',  '*',  ')',  '('		; 10
+;	defb 027h,  '&',  '%',  '$',  '#',  '"',  '!',  '_'		; 20
+;	defb  ' ', 0feh, 0fdh, 00ah, 0f9h, 0f8h, 0f7h, 0f6h		; 40
+;	defb 0efh, 0ebh, 0eah, 0e9h, 0e8h, 0e7h, 0e6h, 0ech		; 80
+;
+;_keymatrix_c:
+;	defb 080h, 01eh, 01dh, 01ch, 01bh, 01ah, 019h, 018h		; 01
+;	defb 017h, 016h, 015h, 014h, 013h, 012h, 011h, 010h		; 02
+;	defb 00fh, 00eh, 00dh, 00ch, 00bh, 00ah, 009h, 008h		; 04
+;	defb 007h, 006h, 005h, 004h, 003h, 002h, 001h, 000h		; 08
+;	defb 01fh, 0ffh, 0ffh, 0ffh, 0ffh, 0ffh, 0ffh, 0ffh		; 10
+;	defb 0ffh, 0ffh, 0ffh, 0ffh, 0ffh, 0ffh, 0ffh, 0ffh		; 20
+;	defb 0a0h, 0feh, 0fdh, 00ah, 0f3h, 0f2h, 0f5h, 0f4h		; 40
+;	defb 0edh, 0e5h, 0e4h, 0e3h, 0e2h, 0e1h, 0e0h, 0eeh		; 80
