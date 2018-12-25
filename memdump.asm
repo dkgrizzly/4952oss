@@ -6,17 +6,17 @@ include "lib/strap.asm"
 _splash_screen_data:
 	defb 0ffh
 
-	defb 002h, 00dh, 083h
+	defb 002h, 00dh, _scrattr_ascii_n
 	defb "HP 4952A", 000h
-	defb 003h, 007h, 083h
+	defb 003h, 007h, _scrattr_ascii_n
 	defb "Open Source Software", 000h
 
-	defb 007h, 009h, 083h
+	defb 007h, 009h, _scrattr_ascii_n
 	defb "Memory Explorer", 000h
 
-	defb 00ch, 008h, 083h
+	defb 00ch, 008h, _scrattr_ascii_n
 	defb "Hacking the 4952", 000h
-	defb 00dh, 009h, 083h
+	defb 00dh, 009h, _scrattr_ascii_n
 	defb "on hackaday.io", 000h
 
 	defb 000h							;; End of Screen Data
@@ -73,12 +73,12 @@ _launch_app:
 	seek 0a00h
 _code_start:
 _app_main:
-_redraw:
 	call _clear_screen
-
+_redraw:
 	call _read_page
 
-	ld de, _mem_buffer
+	ld hl, _mem_buffer
+	push hl
 	xor a
 _next_row:
 	ld c, a
@@ -90,12 +90,23 @@ _next_row:
 	ld (_text_attr), a
 
 	ld b, 0					; Print row starting charnum
+	sla c
+	sla c
+	sla c
+	sla c
 	push bc
+	ld a, (_cur_page)
+	ld l, a
+ 	push hl
+	ld h, 0
+	ld a, (_cur_bank)
+	ld l, a
+	push hl
 	ld hl, _str_row
 	push hl
 	call _printf
 
-	ld a, 080h				; Border Text
+	ld a, _scrattr_graphics			; Border Text
 	ld (_text_attr), a
 	ld a, 09ch				; Right Edge
 	call _writechar_raw
@@ -104,13 +115,15 @@ _next_row:
 	ld (_text_attr), a
 
 	ld b, 16
+	pop hl
 _next_char:
-	ld a, (de)
+	ld a, (hl)
+	inc hl
 	call _writechar_raw
-	inc de
 	djnz _next_char
+	push hl
 
-	ld a, 080h				; Border Text
+	ld a, _scrattr_graphics			; Border Text
 	ld (_text_attr), a
 	ld a, 09bh				; Left Edge
 	call _writechar_raw
@@ -119,28 +132,14 @@ _next_char:
 	cp 010h
 	jr c, _next_row
 
-	ld a, 083h				; Normal Text
+	pop hl
+	
+	ld a, _scrattr_ascii_n			; Normal Text
 	ld (_text_attr), a
 	ld a, 001h				; Line 1
 	ld (_cur_y), a
 	ld a, 019h				; Column 25
 	ld (_cur_x), a
-
-	ld a, (_cur_bank)			; Print current bank
-	ld b, 0
-	ld c, a
-	push bc
-	ld hl, _str_hex
-	push hl
-	call _printf
-
-	ld a, (_cur_page)			; Print current page
-	ld b, 0
-	ld c, a
-	push bc
-	ld hl, _str_hex
-	push hl
-	call _printf
 
 _main_loop:
 
@@ -157,10 +156,16 @@ _main_loop:
 	jr z, _prev_10page
 
 	cp _key_f1
-	jr z, _set_norm
+	jr z, _set_ascii
 
 	cp _key_f2
+	jr z, _set_ebcdic
+
+	cp _key_f3
 	jr z, _set_hex
+
+	cp _key_f4
+	jr z, _set_inv
 
 	cp _key_f5
 	jr z, _prev_bank
@@ -173,13 +178,24 @@ _main_loop:
 
 	jr _main_loop
 	
-_set_norm:
-	ld a, 083h
+_set_ascii:
+	ld a, _scrattr_ascii_n
+	ld (_cur_attr), a
+	jp _redraw
+
+_set_ebcdic:
+	ld a, _scrattr_ebcdic_n
 	ld (_cur_attr), a
 	jp _redraw
 
 _set_hex:
-	ld a, 022h
+	ld a, _scrattr_hextex_n
+	ld (_cur_attr), a
+	jp _redraw
+
+_set_inv:
+	ld a, (_cur_attr)
+	xor _scrattr_inverse
 	ld (_cur_attr), a
 	jp _redraw
 
@@ -220,7 +236,7 @@ _prev_10page:
 _exit_prompt:
 	call _clear_screen
 
-	ld a, 083h				; Normal Text
+	ld a, _scrattr_ascii_n			; Normal Text
 	ld (_text_attr), a
 	ld a, 008h				; Line 1 (Top)
 	ld (_cur_y), a
@@ -252,18 +268,25 @@ _real_exit:
 
 
 _read_page:
-;	di
-;	ld a,(_cur_bank)		; access desired memory bank
-;	out (020h),a			;
+	di
+	in a, (020h)			; save current bank
+	ld (_tmp_bank), a
+
+	ld a,(_cur_bank)		; access desired memory bank
+	and 00fh
+	out (020h),a
 
 	ld l, 0				; Copy data to our buffer
 	ld a, (_cur_page)
+	or 080h
 	ld h, a
+	
 	ld de, _mem_buffer
 	ld bc, 00100h
 	ldir
 
-;	out (020h),a			; restore previous bank
+	ld a,(_tmp_bank)		; restore previous bank
+	out (020h),a
 ;	ei
 	ret
 
@@ -275,10 +298,10 @@ _str_exit:
 	defb "Are you sure you wish to exit?", 000h
 
 _str_row:
-	defb "   %x ", 000h
+	defb "%x%x%x", 000h
 	
-_str_hex:
-	defb "%x", 000h
+;_str_hex:
+;	defb "%x", 000h
 
 _cur_attr:
 	defb 083h
@@ -287,6 +310,9 @@ _cur_page:
 	defb 000h
 
 _cur_bank:
+	defb 000h
+
+_tmp_bank:
 	defb 000h
 
 _mem_buffer:

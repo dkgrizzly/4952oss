@@ -6,17 +6,17 @@ include "lib/strap.asm"
 _splash_screen_data:
 	defb 0ffh
 
-	defb 002h, 00dh, 083h
+	defb 002h, 00dh, _scrattr_ascii_n
 	defb "HP 4952A", 000h
-	defb 003h, 007h, 083h
+	defb 003h, 007h, _scrattr_ascii_n
 	defb "Open Source Software", 000h
 
-	defb 007h, 00ch, 083h
+	defb 007h, 00ch, _scrattr_ascii_n
 	defb "Port Test", 000h
 
-	defb 00ch, 008h, 083h
+	defb 00ch, 008h, _scrattr_ascii_n
 	defb "Hacking the 4952", 000h
-	defb 00dh, 009h, 083h
+	defb 00dh, 009h, _scrattr_ascii_n
 	defb "on hackaday.io", 000h
 
 	defb 000h			;; End of Screen Data
@@ -139,7 +139,7 @@ _str_exit:
 _app_main:
 	call _clear_screen
 
-	ld a, 0abh				; Dim Inverse Text
+	ld a, _scrattr_ascii_i			; Inverse Text
 	ld (_text_attr), a
 
 	ld hl, _screen_porttest
@@ -175,7 +175,7 @@ _next_label:
 _exit_prompt:
 	call _clear_screen
 
-	ld a, 083h				; Normal Text
+	ld a, _scrattr_ascii_n			; Normal Text
 	ld (_text_attr), a
 	ld a, 008h				; Line 1 (Top)
 	ld (_cur_y), a
@@ -211,7 +211,7 @@ _main_loop:
 	cp _key_exit
 	jr z, _exit_prompt
 
-	ld a, 083h				; Normal Text
+	ld a, _scrattr_ascii_n			; Normal Text
 	ld (_text_attr), a
 
 	ld hl, _screen_porttest
@@ -244,7 +244,6 @@ _next_port:
 	pop hl					; And move on.
 	jp _next_port
 
-include "LIB/delay.asm"
 include "LIB/screen.asm"
 include "LIB/printf.asm"
 include "LIB/keyb.asm"

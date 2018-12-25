@@ -1,3 +1,14 @@
+_scrattr_ascii_n:	equ 083h
+_scrattr_ascii_i:	equ 08bh
+_scrattr_ebcdic_n:	equ 043h
+_scrattr_ebcdic_i:	equ 04bh
+_scrattr_hextex_n:	equ 003h
+_scrattr_hextex_i:	equ 00bh
+_scrattr_dim:		equ 020h
+_scrattr_flash:		equ 004h
+_scrattr_flash2:	equ 010h
+_scrattr_inverse:	equ 008h
+_scrattr_graphics:	equ 080h
 
 _clear_screen:
 	push de
@@ -6,10 +17,10 @@ _clear_screen:
 	push af
 	ld de, 04000h			; Screen Buffer
 	ld hl, 04000h
-	ld a, 020h				; ' '
+	ld a, 020h			; ' '
 	ld (hl), a
 	inc hl
-	ld a, 083h				; Normal Attribute
+	ld a, _scrattr_ascii_n		; Normal Attribute
 	ld (hl), a
 	inc hl
 	ex de,hl
@@ -35,68 +46,68 @@ _wrcurx:
 ; Print string at _cur_y, _cur_x, using _text_attr
 ; HL = Message (zero-terminated)
 _writestring:
-	ld a,(hl)				; Get character at HL
-	or a					; Set flags
-	ret z					; Return if zero
+	ld a,(hl)			; Get character at HL
+	or a				; Set flags
+	ret z				; Return if zero
 	call _writechar			; Print character from A
-	inc hl					; Advance
+	inc hl				; Advance
 	jr _writestring			; Loop
 
 ; Print char at _cur_y, _cur_x, using _text_attr
-; A = Character
+; A = Character, AF is clobbered by function
 _writechar:
-	cp 00ah					; Newline?
-	jr z,_advance_line_nl	;
-	cp 00dh					; Carriage Return?
+	cp 00ah				; Newline?
+	jr z,_advance_line_nl		;
+	cp 00dh				; Carriage Return?
 	jr z,_advance_line		;
-	cp 00ch					; Clear Screen?
+	cp 00ch				; Clear Screen?
 	jr z,_clear_screen		;
-	cp 008h					; Backspace?
+	cp 008h				; Backspace?
 	jr z,_backspace			;
 _writechar_raw:
-	push de					; Store clobbered registers
-	push hl					;
-	push af					;
+	push de				; Store clobbered registers
+	push hl				;
+	push af				;
 
 	ld h,000h
 	ld a,(_cur_y)			; Line
 	ld l,a
-	dec l					; --
-	add hl,hl				; <<
-	add hl,hl				; <<
-	add hl,hl				; <<
-	add hl,hl				; <<
-	add hl,hl				; <<
-	add hl,hl				; <<
+	dec l				; --
+	add hl,hl			; <<
+	add hl,hl			; <<
+	add hl,hl			; <<
+	add hl,hl			; <<
+	add hl,hl			; <<
+	add hl,hl			; <<
 
-	ex de,hl				; de = hl
+	ex de,hl			; de = hl
 
 	ld h,000h
 	ld a,(_cur_x)			; Column
-	dec a					; --
-	add a,a					; <<
-	ld l,a					; 
-	add hl,de				;
+	dec a				; --
+	add a,a				; <<
+	ld l,a				; 
+	add hl,de			;
 
 	ld de,04000h			; Screen Buffer
-	add hl,de				;
+	add hl,de			;
 
-	pop af					; 
-	ld (hl),a				; Text Character
-	inc hl					;
+	pop af				; 
+	ld (hl),a			; Text Character
+	inc hl				;
 
 	ld a,(_text_attr)		;
-	ld (hl),a				; Text Attribute
+	ld (hl),a			; Text Attribute
 
-	pop hl					; Restore clobbered registers
-	pop de					;
+	pop hl				; Restore clobbered registers
+	pop de				;
 
 _advance_cursor:
 	ld a,(_cur_x)
-	inc a					; Advance cursor
+	inc a				; Advance cursor
 	ld (_cur_x),a
-	cp 021h					; Should we wrap?
-	ret m					; nope
+	cp 021h				; Should we wrap?
+	ret m				; nope
 
 	jr _advance_line
 
@@ -106,7 +117,7 @@ _advance_line_nl:			; Newline only advances if X != 1
 	ret z
 
 _advance_line:
-	ld a,001h				; Wrap to next line
+	ld a,001h			; Wrap to next line
 	ld (_cur_x),a
 	ld a,(_cur_y)
 	inc a
@@ -126,13 +137,13 @@ _advance_line:
 	pop de
 	pop hl
 
-	ld a,010h				; We ran out of lines!
+	ld a,010h			; We ran out of lines!
 	ld (_cur_y),a			; loop (for now)
-	ret						;
+	ret				;
 
 _cur_x:
 	defb 001h
 _cur_y:
 	defb 001h
 _text_attr:
-	defb 083h
+	defb _scrattr_ascii_n

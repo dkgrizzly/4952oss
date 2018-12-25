@@ -7,17 +7,17 @@ _splash_start:
 _splash_screen_data:
 	defb 0ffh
 
-	defb 002h, 00dh, 083h
+	defb 002h, 00dh, _scrattr_ascii_n
 	defb "HP 4952A", 000h
-	defb 003h, 007h, 083h
+	defb 003h, 007h, _scrattr_ascii_n
 	defb "Open Source Software", 000h
 
-	defb 007h, 009h, 083h
+	defb 007h, 009h, _scrattr_ascii_n
 	defb "Charset Explorer", 000h
 
-	defb 00ch, 008h, 083h
+	defb 00ch, 008h, _scrattr_ascii_n
 	defb "Hacking the 4952", 000h
-	defb 00dh, 009h, 083h
+	defb 00dh, 009h, _scrattr_ascii_n
 	defb "on hackaday.io", 000h
 
 	defb 000h			;; End of Screen Data
@@ -76,9 +76,9 @@ _splash_end:
 	seek 0a00h
 _code_start:
 _app_main:
-_redraw:
 	call _clear_screen
 
+_redraw:
 	xor a
 _next_row:
 	ld c, a
@@ -86,8 +86,13 @@ _next_row:
 	ld (_cur_y), a
 	ld a, 001h				; Column 1 (Left)
 	ld (_cur_x), a
-	ld a, 083h				; Normal Text
+	ld a, _scrattr_ascii_n			; Normal Text
 	ld (_text_attr), a
+
+	sla c
+	sla c
+	sla c
+	sla c
 
 	ld b, 0					; Print row starting charnum
 	push bc
@@ -95,7 +100,7 @@ _next_row:
 	push hl
 	call _printf
 
-	ld a, 080h				; Border Text
+	ld a, _scrattr_graphics			; Border Text
 	ld (_text_attr), a
 	ld a, 09ch				; Right Edge
 	call _writechar_raw
@@ -104,17 +109,20 @@ _next_row:
 	ld (_text_attr), a
 
 	ld b, 16
-	ld a, c					; Set starting char for row
+	ld a, (_cur_y)				; Set starting char for row
+	dec a
 	sla a
 	sla a
 	sla a
 	sla a
 _next_char:
+	push af
 	call _writechar_raw
+	pop af
 	inc a
 	djnz _next_char
 
-	ld a, 080h				; Border Text
+	ld a, _scrattr_graphics			; Border Text
 	ld (_text_attr), a
 	ld a, 09bh				; Left Edge
 	call _writechar_raw
@@ -123,7 +131,7 @@ _next_char:
 	cp 010h
 	jr c, _next_row
 
-	ld a, 083h				; Normal Text
+	ld a, _scrattr_ascii_n			; Normal Text
 	ld (_text_attr), a
 	ld a, 001h				; Line 1
 	ld (_cur_y), a
@@ -161,31 +169,48 @@ _main_loop:
 	jr z, _prev_bit
 
 	cp _key_f1
-	jr z, _set_norm
-
+	jr z, _set_ascii_n
 	cp _key_f2
-	jr z, _set_inv_dim
+	jr z, _set_ascii_i
 
 	cp _key_f3
-	jr z, _set_inv
+	jr z, _set_ebcdic_n
+	cp _key_f4
+	jr z, _set_ebcdic_i
+
+	cp _key_f5
+	jr z, _set_hextex_n
+	cp _key_f6
+	jr z, _set_hextex_i
 
 	cp _key_exit
 	jr z, _exit_prompt
 
 	jr _main_loop
 	
-_set_norm:
-	ld a, 083h
-	ld (_cur_attr), a
-	jp _redraw
+_set_ascii_n:
+	ld a, _scrattr_ascii_n
+	jr _set_attr
 
-_set_inv_dim:
-	ld a, 0abh
-	ld (_cur_attr), a
-	jp _redraw
+_set_ascii_i:
+	ld a, _scrattr_ascii_i
+	jr _set_attr
 
-_set_inv:
-	ld a, 08bh
+_set_ebcdic_n:
+	ld a, _scrattr_ebcdic_n
+	jr _set_attr
+
+_set_ebcdic_i:
+	ld a, _scrattr_ebcdic_i
+	jr _set_attr
+
+_set_hextex_n:
+	ld a, _scrattr_hextex_n
+	jr _set_attr
+
+_set_hextex_i:
+	ld a, _scrattr_hextex_i
+_set_attr:
 	ld (_cur_attr), a
 	jp _redraw
 
@@ -218,7 +243,7 @@ _prev_bit:
 _exit_prompt:
 	call _clear_screen
 
-	ld a, 083h				; Normal Text
+	ld a, _scrattr_ascii_n			; Normal Text
 	ld (_text_attr), a
 	ld a, 008h				; Line 1 (Top)
 	ld (_cur_y), a
@@ -252,13 +277,13 @@ _str_exit:
 	defb "Are you sure you wish to exit?", 000h
 
 _str_row:
-	defb "   %x ", 000h
+	defb "%x", 000h
 	
 _str_hex:
 	defb "%x", 000h
 
 _cur_attr:
-	defb 083h
+	defb _scrattr_ascii_n
 
 _attr_bit:
 	defb 001h

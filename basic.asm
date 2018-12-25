@@ -6,17 +6,17 @@ include "lib/strap.asm"
 _splash_screen_data:
 	DB 0ffh
 
-	DB 003h, 00Dh, 083h
+	DB 003h, 00Dh, _scrattr_ascii_n
 	DB "BASIC-80", 000h
 
-	DB 006h, 009h, 083h
+	DB 006h, 009h, _scrattr_ascii_n
 	DB "for the HP 4952", 000h
-	DB 007h, 008h, 083h
+	DB 007h, 008h, _scrattr_ascii_n
 	DB "Protocol Analyzer", 000h
 
-	DB 00ah, 008h, 083h, 0abh
+	DB 00ah, 008h, _scrattr_ascii_n, 0abh
 	DB " Copyright 1978", 000h
-	DB 00bh, 00ch, 083h
+	DB 00bh, 00ch, _scrattr_ascii_n
 	DB "Microsoft", 000h
 
 	DB 000h							;; End of Screen Data
@@ -4454,7 +4454,10 @@ JJUMP1:
 	JP      CSTART          ; Go and initialise
 
 MONOUT: 
-		JP 		_writechar
+	PUSH	AF
+	CALL 		_writechar
+	POP	AF
+	RET
 
 MONITR: 
 	JP      014d5h           ; Restart (Normally Monitor Start)

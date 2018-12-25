@@ -6,17 +6,17 @@ include "lib/strap.asm"
 _splash_screen_data:
 	defb 0ffh
 
-	defb 002h, 00dh, 083h
+	defb 002h, 00dh, _scrattr_ascii_n
 	defb "HP 4952A", 000h
-	defb 003h, 007h, 083h
+	defb 003h, 007h, _scrattr_ascii_n
 	defb "Open Source Software", 000h
 
-	defb 007h, 00bh, 083h
+	defb 007h, 00bh, _scrattr_ascii_n
 	defb "Keyboard Test", 000h
 
-	defb 00ch, 008h, 083h
+	defb 00ch, 008h, _scrattr_ascii_n
 	defb "Hacking the 4952", 000h
-	defb 00dh, 009h, 083h
+	defb 00dh, 009h, _scrattr_ascii_n
 	defb "on hackaday.io", 000h
 
 	defb 000h							;; End of Screen Data
@@ -123,7 +123,7 @@ _main_entry:
 	call _clear_screen
 
 _main_loop:
-	ld a, 083h				; Normal Text
+	ld a, _scrattr_ascii_n			; Normal Text
 	ld (_text_attr), a
 
 	call _keyscan
@@ -154,7 +154,7 @@ _main_loop:
 _exit_prompt:
 	call _clear_screen
 
-	ld a, 083h				; Normal Text
+	ld a, _scrattr_ascii_n			; Normal Text
 	ld (_text_attr), a
 	ld a, 008h				; Line 1 (Top)
 	ld (_cur_y), a
@@ -186,7 +186,7 @@ _real_exit:
 	jp 014d5h				; Return to main menu.
 
 _show_matrix:
-	ld a, 022h				; HexaText
+	ld a, _scrattr_hextex_n			; HexaText
 	ld (_text_attr), a
 
 	ld hl, _keystates
@@ -197,7 +197,7 @@ _next_row:
 	ld a, 005h
 	ld (_cur_x), a
 
-	ld c, b			; save outer loop count
+	ld c, b					; save outer loop count
 	ld b, 008h
 _next_col:
 	ld a, (hl)
@@ -207,7 +207,7 @@ _check_next_col:
 	inc hl
 	djnz _next_col
 
-	ld b, c			; restore outer loop count
+	ld b, c					; restore outer loop count
 
 	ld a, (_cur_y)
 	inc a
@@ -215,7 +215,7 @@ _check_next_col:
 
 	djnz _next_row
 
-	ld a, 083h				; Normal Text
+	ld a, _scrattr_ascii_n			; Normal Text
 	ld (_text_attr), a
 	ret
 
