@@ -1,4 +1,3 @@
-include "lib/header.asm"
 include "lib/strap.asm"
 
 	org 02071h
@@ -11,8 +10,8 @@ _splash_screen_data:
 	defb 003h, 006h, 083h
 	defb "Open Source Software", 000h
 
-	defb 006h, 009h, 083h
-	defb "Keyboard Test", 000h
+	defb 006h, 006h, 083h
+	defb "Character Attributes", 000h
 
 	defb 00ch, 008h, 083h
 	defb "Hacking the 4952", 000h
@@ -72,117 +71,80 @@ _launch_app:
 	org 2160h
 	seek 0a00h
 
-_str_exit:
-	defb "Are you sure you wish to exit?", 000h
+_cnt_frames:
+	defw 00000h
 
-_str_hello:
-	defb "    0123456789abcdef\n"
-	defb "    ||||||||||||||||\n"
-	defb "  8-"
-	defb 080h, 081h, 082h, 083h, 084h, 085h, 086h, 087h
-	defb 088h, 089h, 08ah, 08bh, 08ch, 08dh, 08eh, 08fh
-	defb "\n"
-	defb "  9-"
-	defb 090h, 091h, 092h, 093h, 094h, 095h, 096h, 097h
-	defb 098h, 099h, 09ah, 09bh, 09ch, 09dh, 09eh, 09fh
-	defb "\n"
-	defb "  a-"
-	defb 0a0h, 0a1h, 0a2h, 0a3h, 0a4h, 0a5h, 0a6h, 0a7h
-	defb 0a8h, 0a9h, 0aah, 0abh, 0ach, 0adh, 0aeh, 0afh
-	defb "\n"
-	defb "  b-"
-	defb 0b0h, 0b1h, 0b2h, 0b3h, 0b4h, 0b5h, 0b6h, 0b7h
-	defb 0b8h, 0b9h, 0bah, 0bbh, 0bch, 0bdh, 0beh, 0bfh
-	defb "\n"
-	defb "  c-"
-	defb 0c0h, 0c1h, 0c2h, 0c3h, 0c4h, 0c5h, 0c6h, 0c7h
-	defb 0c8h, 0c9h, 0cah, 0cbh, 0cch, 0cdh, 0ceh, 0cfh
-	defb "\n"
-	defb "  d-"
-	defb 0d0h, 0d1h, 0d2h, 0d3h, 0d4h, 0d5h, 0d6h, 0d7h
-	defb 0d8h, 0d9h, 0dah, 0dbh, 0dch, 0ddh, 0deh, 0dfh
-	defb "\n"
-	defb "  e-"
-	defb 0e0h, 0e1h, 0e2h, 0e3h, 0e4h, 0e5h, 0e6h, 0e7h
-	defb 0e8h, 0e9h, 0eah, 0ebh, 0ech, 0edh, 0eeh, 0efh
-	defb "\n"
-	defb "  f-"
-	defb 0f0h, 0f1h, 0f2h, 0f3h, 0f4h, 0f5h, 0f6h, 0f7h
-	defb 0f8h, 0f9h, 0fah, 0fbh, 0fch, 0fdh, 0feh, 0ffh
-	defb "\n"
-	defb 000h
+_str_frames:
+	defb "%x%x", 000h
+
+_str_finished:
+	defb "Goodbye.", 000h
+
+_paint_attr:
+	ld hl, 04000h
+	ld d, 000h
+	ld b, 0
+
+_next_char:
+	ld (hl), a				; Write character cell
+	inc hl
+	ld (hl), d				; Write attribute
+	inc hl
+	inc d					; Next attribute
+	djnz _next_char
+	ret
 
 _app_main:
 	call _clear_screen
 
+_main_loop:
+	ld a, (_cnt_frames+1)
+	call _paint_attr
+
 	ld a, 083h				; Normal Text
 	ld (_text_attr), a
-	ld a, 001h				; Line 15
+	ld a, 00eh				; Line 1 (Top)
 	ld (_cur_y), a
 	ld a, 001h				; Column 1 (Left)
 	ld (_cur_x), a
 
-	ld hl, _str_hello
+	ld hl, (_cnt_frames)
+	ld d, 0
+	ld e, h
+	push de
+	ld e, l
+	push de
+	ld hl, _str_frames
 	push hl
 	call _printf
 
+	ld bc,00040h			; Delay 2048 delay counts
+	call _delay
 
-_main_loop:
+	ld hl, (_cnt_frames)	; Get frame count
+	dec hl
+	ld (_cnt_frames), hl	; Write it back
+	ld a,h
+	or l
+	jr nz,_main_loop
 
-	call _getkey_cooked
-
-	cp 0ffh					; Cooked shouldn't return this ever.
-	jr z, _main_loop
-
-	cp 000h
-	jr z, _main_loop
-
-	cp _key_exit
-	jr z, _exit_prompt
-
-;;	bit 7,a
-;;	jr nz, _spc_keys
-
-	call _writechar
-
-	jr _main_loop
-
-_exit_prompt:
 	call _clear_screen
 
 	ld a, 083h				; Normal Text
 	ld (_text_attr), a
-	ld a, 008h				; Line 1 (Top)
+	ld a, 001h				; Line 1 (Top)
 	ld (_cur_y), a
-	ld a, 002h				; Column 1 (Left)
+	ld a, 001h				; Column 1 (Left)
 	ld (_cur_x), a
 
-	ld hl, _str_exit
+	ld hl, _str_finished
 	call _writestring
-
-_wait_exit:
-	call _getkey_cooked
-	cp 'y'
-	jr z, _real_exit
-	cp 'Y'
-	jr z, _real_exit
-
-	cp 'n'
-	jr z, _app_main
-	cp 'N'
-	jr z, _app_main
-
-	jr _wait_exit
-
-_real_exit:
-	call _clear_screen
-
+	
 	jp 014d5h				; Return to main menu.
 
 include "lib/delay.asm"
 include "lib/screen.asm"
 include "lib/printf.asm"
-include "lib/keyb.asm"
 
 ;; End of Main Application
 

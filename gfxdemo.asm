@@ -11,15 +11,15 @@ _splash_screen_data:
 	defb 003h, 006h, 083h
 	defb "Open Source Software", 000h
 
-	defb 006h, 009h, 083h
-	defb "Keyboard Test", 000h
+	defb 006h, 006h, 083h
+	defb "Blocky Graphics Demo", 000h
 
 	defb 00ch, 008h, 083h
 	defb "Hacking the 4952", 000h
 	defb 00dh, 009h, 083h
 	defb "on hackaday.io", 000h
 
-	defb 000h							;; End of Screen Data
+	defb 000h			;; End of Screen Data
 
 _splash_menu_data:
 	defb "Re-!BERT!Remote!Mass !Run !Self~"
@@ -68,67 +68,104 @@ _launch_app:
 	ldir				;
 	jp _app_main			; Run the application
 
+
 ;; Main Application
 	org 2160h
 	seek 0a00h
 
+_cnt_frames:
+	defw 00800h
+
+_str_finished:
+	defb "Goodbye.", 000h
+
 _str_exit:
 	defb "Are you sure you wish to exit?", 000h
 
-_str_hello:
-	defb "    0123456789abcdef\n"
-	defb "    ||||||||||||||||\n"
-	defb "  8-"
-	defb 080h, 081h, 082h, 083h, 084h, 085h, 086h, 087h
-	defb 088h, 089h, 08ah, 08bh, 08ch, 08dh, 08eh, 08fh
-	defb "\n"
-	defb "  9-"
-	defb 090h, 091h, 092h, 093h, 094h, 095h, 096h, 097h
-	defb 098h, 099h, 09ah, 09bh, 09ch, 09dh, 09eh, 09fh
-	defb "\n"
-	defb "  a-"
-	defb 0a0h, 0a1h, 0a2h, 0a3h, 0a4h, 0a5h, 0a6h, 0a7h
-	defb 0a8h, 0a9h, 0aah, 0abh, 0ach, 0adh, 0aeh, 0afh
-	defb "\n"
-	defb "  b-"
-	defb 0b0h, 0b1h, 0b2h, 0b3h, 0b4h, 0b5h, 0b6h, 0b7h
-	defb 0b8h, 0b9h, 0bah, 0bbh, 0bch, 0bdh, 0beh, 0bfh
-	defb "\n"
-	defb "  c-"
-	defb 0c0h, 0c1h, 0c2h, 0c3h, 0c4h, 0c5h, 0c6h, 0c7h
-	defb 0c8h, 0c9h, 0cah, 0cbh, 0cch, 0cdh, 0ceh, 0cfh
-	defb "\n"
-	defb "  d-"
-	defb 0d0h, 0d1h, 0d2h, 0d3h, 0d4h, 0d5h, 0d6h, 0d7h
-	defb 0d8h, 0d9h, 0dah, 0dbh, 0dch, 0ddh, 0deh, 0dfh
-	defb "\n"
-	defb "  e-"
-	defb 0e0h, 0e1h, 0e2h, 0e3h, 0e4h, 0e5h, 0e6h, 0e7h
-	defb 0e8h, 0e9h, 0eah, 0ebh, 0ech, 0edh, 0eeh, 0efh
-	defb "\n"
-	defb "  f-"
-	defb 0f0h, 0f1h, 0f2h, 0f3h, 0f4h, 0f5h, 0f6h, 0f7h
-	defb 0f8h, 0f9h, 0fah, 0fbh, 0fch, 0fdh, 0feh, 0ffh
-	defb "\n"
-	defb 000h
+; BLOCKY MODE 64x32 PIXELS
+_update_blocky:
+	push ix
+	ld ix, 04000h			; Line 1 Column 1
+	ld hl, gfx_screen
+	ld b, 16			; Number of blocks vertically
+_update_nextrow:
+	push bc
+	;push ix			; If width != screen uncomment this
+	ld b, 32			; Number of blocks horizontally
+_update_row:
+	ld a, (hl)			; Top-Left Pixel from cluster
+	sla a
+	inc hl
+
+	ld c, (hl)			; Top-Right Pixel from cluster
+	or c
+	sla a
+
+	inc hl				; Save next cluster address
+	push hl
+
+	ld de, 62
+	add hl, de
+	ld c, (hl)			; Bottom-Left Pixel from cluster
+	or c
+	sla a
+	inc hl
+
+	ld c, (hl)			; Bottom-Right Pixel from cluster
+	or c
+
+	sla a				; Shift one more for the attribute
+
+	; A now contains 000LRlr0 which we use to index into the blocky table
+
+	ld hl, _blocky
+	ld d, 0
+	ld e, a
+	add hl, de
+	ld a, (hl)
+
+	ld (ix+0), a			; Write cell to screen
+	inc ix				; Skip attributes
+	inc hl
+	ld a, (hl)
+	ld (ix+0), a			; Write attr to screen
+	inc ix
+
+	pop hl				; Restore next cluster address
+	djnz _update_row
+
+	; If we aren't using the whole screen for blocky graphics we need
+	; to handle row skew here...
+
+	;pop ix				; If width != screen uncomment this
+	ld de, 64			; Skip odd rows
+	add hl, de			;
+	pop bc				; Number of blocks vertically
+	djnz _update_nextrow
+	pop ix
+	ret
+
+_blocky:
+	DW 08320h, 080b8h, 080b4h, 080bch
+	DW 080b2h, 080bah, 080b6h, 080beh
+	DW 080b1h, 080b9h, 080b5h, 080bdh
+	DW 080b3h, 080bbh, 080b7h, 08b20h
+	
 
 _app_main:
 	call _clear_screen
 
-	ld a, 083h				; Normal Text
+	call _update_blocky
+
+	ld a, 083h			; Normal Text
 	ld (_text_attr), a
-	ld a, 001h				; Line 15
+	ld a, 001h			; Line 15
 	ld (_cur_y), a
-	ld a, 001h				; Column 1 (Left)
+	ld a, 001h			; Column 1 (Left)
 	ld (_cur_x), a
 
-	ld hl, _str_hello
-	push hl
-	call _printf
-
-
 _main_loop:
-
+	
 	call _getkey_cooked
 
 	cp 0ffh					; Cooked shouldn't return this ever.
@@ -139,11 +176,6 @@ _main_loop:
 
 	cp _key_exit
 	jr z, _exit_prompt
-
-;;	bit 7,a
-;;	jr nz, _spc_keys
-
-	call _writechar
 
 	jr _main_loop
 
@@ -184,10 +216,13 @@ include "lib/screen.asm"
 include "lib/printf.asm"
 include "lib/keyb.asm"
 
+gfx_screen:
+include "lib/logo.asm"
+
 ;; End of Main Application
 
 ;; Fill to end of file
-	org 0b0ffh
-	seek 010ffh
+	org 0c0ffh
+	seek 020ffh
 	defb 000h
 _file_end:

@@ -11,8 +11,8 @@ _splash_screen_data:
 	defb 003h, 006h, 083h
 	defb "Open Source Software", 000h
 
-	defb 006h, 009h, 083h
-	defb "Keyboard Test", 000h
+	defb 006h, 005h, 083h
+	defb "Character Set Explorer", 000h
 
 	defb 00ch, 008h, 083h
 	defb "Hacking the 4952", 000h
@@ -40,10 +40,10 @@ _p_mm_run:
 _p_mm_exam:
 	defw 013cdh			;; Ordinal 12eh Examine Data
 _p_mm_next1:
-	defw _p_main_menu_page_two	;; Next Page
+	defw _p_main_menu_page_two			;; Next Page
 
 _p_main_menu_page_two:
-	defw _splash_menu_data		;; Second Page Menu Data
+	defw _splash_menu_data	;; Second Page Menu Data
 _p_mm_reset:
 	defw 0bb1ah			;; Entry Point for Re-Set
 _p_mm_bert:
@@ -57,23 +57,28 @@ _p_mm_launch_app:
 _p_mm_selftest:
 	defw 0136fh			;; Ordinal 12ah Self Test
 _p_mm_next2:
-	defw _p_main_menu_page_one	;; Next Page
+	defw _p_main_menu_page_one			;; Next Page
 
 _launch_app:
 	ld a, 006h
 	call 00e60h			; Page in 6
-	ld hl,0aa00h			; Copy application to Work RAM
-	ld de,02160h			;
-	ld bc,01e9fh			; Fixme: update to size of main code
+	ld hl,0aa00h		; Copy application to Work RAM
+	ld de,02160h		;
+	ld bc,01e9fh		; Fixme: update to size of main code
 	ldir				;
-	jp _app_main			; Run the application
+	jp _app_main		; Run the application
+
+;; End of menu section
 
 ;; Main Application
 	org 2160h
 	seek 0a00h
 
-_str_exit:
-	defb "Are you sure you wish to exit?", 000h
+_cnt_frames:
+	defw 00800h
+
+_str_finished:
+	defb "Goodbye.", 000h
 
 _str_hello:
 	defb "    0123456789abcdef\n"
@@ -129,60 +134,33 @@ _app_main:
 
 _main_loop:
 
-	call _getkey_cooked
+	ld bc,01000h			; Delay 2048 delay counts
+	call _delay
 
-	cp 0ffh					; Cooked shouldn't return this ever.
-	jr z, _main_loop
+	ld hl, (_cnt_frames)	; Get frame count
+	dec hl
+	ld (_cnt_frames), hl	; Write it back
+	ld a,h
+	or l
+	jr nz,_main_loop
 
-	cp 000h
-	jr z, _main_loop
-
-	cp _key_exit
-	jr z, _exit_prompt
-
-;;	bit 7,a
-;;	jr nz, _spc_keys
-
-	call _writechar
-
-	jr _main_loop
-
-_exit_prompt:
 	call _clear_screen
 
 	ld a, 083h				; Normal Text
 	ld (_text_attr), a
-	ld a, 008h				; Line 1 (Top)
+	ld a, 001h				; Line 1 (Top)
 	ld (_cur_y), a
-	ld a, 002h				; Column 1 (Left)
+	ld a, 001h				; Column 1 (Left)
 	ld (_cur_x), a
 
-	ld hl, _str_exit
+	ld hl, _str_finished
 	call _writestring
-
-_wait_exit:
-	call _getkey_cooked
-	cp 'y'
-	jr z, _real_exit
-	cp 'Y'
-	jr z, _real_exit
-
-	cp 'n'
-	jr z, _app_main
-	cp 'N'
-	jr z, _app_main
-
-	jr _wait_exit
-
-_real_exit:
-	call _clear_screen
 
 	jp 014d5h				; Return to main menu.
 
 include "lib/delay.asm"
 include "lib/screen.asm"
 include "lib/printf.asm"
-include "lib/keyb.asm"
 
 ;; End of Main Application
 
