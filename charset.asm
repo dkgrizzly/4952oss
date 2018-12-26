@@ -3,7 +3,6 @@ include "lib/strap.asm"
 
 	org 02071h
 	seek 00871h
-_splash_start:
 _splash_screen_data:
 	defb 0ffh
 

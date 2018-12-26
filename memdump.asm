@@ -68,6 +68,9 @@ _launch_app:
 	ldir				;
 	jp _app_main			; Run the application
 
+_splash_end:
+;; End of menu section
+
 ;; Main Application
 	org 2200h
 	seek 0a00h
