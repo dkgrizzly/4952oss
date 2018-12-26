@@ -11,12 +11,14 @@ _scrattr_inverse:	equ 008h
 _scrattr_graphics:	equ 080h
 
 _clear_screen:
-	push de
 	push hl
+	push de
 	push bc
 	push af
 	ld de, 04000h			; Screen Buffer
 	ld hl, 04000h
+	ld bc, 003feh
+_clear_line:
 	ld a, 020h			; ' '
 	ld (hl), a
 	inc hl
@@ -24,12 +26,11 @@ _clear_screen:
 	ld (hl), a
 	inc hl
 	ex de,hl
-	ld bc, 003feh
 	ldir
 	pop af
 	pop bc
-	pop hl
 	pop de
+	pop hl
 	ret
 
 _backspace:
@@ -133,9 +134,11 @@ _advance_line:
 	ld de, 04000h
 	ld bc, 003c0h
 	ldir
-	pop bc
-	pop de
+	ld bc, 0003eh
+	push de
 	pop hl
+	push af
+	call _clear_line
 
 	ld a,010h			; We ran out of lines!
 	ld (_cur_y),a			; loop (for now)

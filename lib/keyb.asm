@@ -54,11 +54,13 @@ _getkey_nowait:
 	push de
 	push bc
 
-	ld a, (_keystates + _scancode_shift)			; C = (Shift << 1) | Ctrl
+	ld a, (_keystates + _scancode_shift)			; C = (Ctrl << 2) | (Shift << 7)
+	rr a
+	rr a
+	rr a
 	rr a
 	ld a, (_keystates + _scancode_ctrl)
-	rl a
-;	and 3							; optimization
+	rr a
 	ld c, a
 
 	ld de, _keymatrix
@@ -100,10 +102,10 @@ _gk_decode:
 	bit 7, a						; Special characters are not
 	jr nz, _gk_done						; modified here
 
-	bit 0, c						; Handle Ctrl-[key]
+	bit 2, c						; Handle Ctrl-[key]
 	jr nz, _gk_ctrl
 	
-	bit 1, c						; Handle Shift-[key]
+	bit 7, c						; Handle Shift-[key]
 	jr nz, _gk_shift
 	
 _gk_done:
@@ -115,7 +117,7 @@ _gk_done:
 _gk_ctrl:
 	cp 030h							; The outlier
 	jr z, _gk_ctrl_0
-	bit 5, b						; Only modify valid ctrl-sequences
+	bit 5, a						; Only modify valid ctrl-sequences
 	jr z, _gk_done
 _gk_ctrl_0:
 	and 01fh
@@ -123,10 +125,10 @@ _gk_ctrl_0:
 
 _gk_shift:
 	cp 040h							; Alpha & @ get bit 5 inverted
-	jr c, _gk_shift_alpha
+	jr nc, _gk_shift_alpha
 	cp 030h
 	jr z, _gk_shift_0					; Zero becomes underscore
-	jr c, _gk_shift_num					; 1 thru ? become ! thru /
+	jr nc, _gk_shift_num					; 1 thru ? become ! thru /
 
 	jr _gk_done
 
@@ -294,23 +296,3 @@ _keymatrix:
 	defb  '7',  '6',  '5',  '4',  '3',  '2',  '1',  '0'		; 20
 	defb  ' ', 0feh, 0fdh, 0fah, 0f9h, 0f8h, 0f7h, 0f6h		; 40
 	defb 0efh, 0e5h, 0e4h, 0e3h, 0e2h, 0e1h, 0e0h, 0ech		; 80
-
-;_keymatrix_s:
-;	defb 080h,  '~',  '}',  '|',  '{',  'Z',  'Y',  'X'		; 01
-;	defb  'W',  'V',  'U',  'T',  'S',  'R',  'Q',  'P'		; 02
-;	defb  'O',  'N',  'M',  'L',  'K',  'J',  'I',  'H'		; 04
-;	defb  'G',  'F',  'E',  'D',  'C',  'B',  'A',  '`'		; 08
-;	defb  '/',  '>',  '=',  '<',  '+',  '*',  ')',  '('		; 10
-;	defb 027h,  '&',  '%',  '$',  '#',  '"',  '!',  '_'		; 20
-;	defb  ' ', 0feh, 0fdh, 00ah, 0f9h, 0f8h, 0f7h, 0f6h		; 40
-;	defb 0efh, 0ebh, 0eah, 0e9h, 0e8h, 0e7h, 0e6h, 0ech		; 80
-;
-;_keymatrix_c:
-;	defb 080h, 01eh, 01dh, 01ch, 01bh, 01ah, 019h, 018h		; 01
-;	defb 017h, 016h, 015h, 014h, 013h, 012h, 011h, 010h		; 02
-;	defb 00fh, 00eh, 00dh, 00ch, 00bh, 00ah, 009h, 008h		; 04
-;	defb 007h, 006h, 005h, 004h, 003h, 002h, 001h, 000h		; 08
-;	defb 01fh, 0ffh, 0ffh, 0ffh, 0ffh, 0ffh, 0ffh, 0ffh		; 10
-;	defb 0ffh, 0ffh, 0ffh, 0ffh, 0ffh, 0ffh, 0ffh, 0ffh		; 20
-;	defb 0a0h, 0feh, 0fdh, 00ah, 0f3h, 0f2h, 0f5h, 0f4h		; 40
-;	defb 0edh, 0e5h, 0e4h, 0e3h, 0e2h, 0e1h, 0e0h, 0eeh		; 80

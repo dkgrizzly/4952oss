@@ -40,10 +40,10 @@ _p_mm_run:
 _p_mm_exam:
 	DW 013cdh			;; Ordinal 12eh Examine Data
 _p_mm_next1:
-	DW _p_main_menu_page_two			;; Next Page
+	DW _p_main_menu_page_two	;; Next Page
 
 _p_main_menu_page_two:
-	DW _splash_menu_data	;; Second Page Menu Data
+	DW _splash_menu_data		;; Second Page Menu Data
 _p_mm_reset:
 	DW 0bb1ah			;; Entry Point for Re-Set
 _p_mm_bert:
@@ -53,32 +53,33 @@ _p_mm_remote:
 _p_mm_masstorage:
 	DW 00f0ch			;; Entry Point for Mass Storage
 _p_mm_launch_app:
-	DW _launch_app	;; Entry Point for Application
+	DW _launch_app			;; Entry Point for Application
 _p_mm_selftest:
 	DW 0136fh			;; Ordinal 12ah Self Test
 _p_mm_next2:
-	DW _p_main_menu_page_one			;; Next Page
+	DW _p_main_menu_page_one	;; Next Page
 
 _launch_app:
 	ld a, 006h
 	call 00e60h			; Page in 6 - Really 2 (Application "ROM" in RAM)
-	ld hl,0aa00H		; Copy application to Work RAM
-	ld de,_CODE_START	;
-	ld bc,_CODE_SIZE	;
+	ld hl,0aa00H			; Copy application to Work RAM
+	ld de,_code_start		;
+	ld bc,_code_end-_code_start	;
 	ldir				;
-	jp _app_main		; Run the application
+	jp _app_main			; Run the application
 
+	DW _code_end
 ;; End of menu section
 
 ;; Main Application
-	org 2200h
+	org 2160h
 	seek 0a00h
-_CODE_START: equ $
+_code_start:
 
 _app_main:
 	call _clear_screen
 
-	ld a, 083h				; Normal Text
+	ld a, _scrattr_ascii_n			; Normal Text
 	ld (_text_attr), a
 	ld a, 001h				; Line 15
 	ld (_cur_y), a
@@ -86,8 +87,8 @@ _app_main:
 	ld (_cur_x), a
 
 _main_loop:
-	di
-	;ld a,7				; access desired memory bank
+	;di
+	;ld a,00fh			; access desired memory bank
 	;out (020h),a			;
 
 	ld SP, 0f000h
@@ -123,110 +124,110 @@ include "lib/keyb.asm"
 
 ; GENERAL EQUATES
 
-CTRLC:	equ		03H             ; Control "C"
-CTRLG:	equ		07H             ; Control "G"
-BKSP:	equ		08H             ; Back space
-LF:		equ		0AH             ; Line feed
-CS:		equ		0CH             ; Clear screen
-CR:		equ		0DH             ; Carriage return
-CTRLO:	equ		0FH             ; Control "O"
-CTRLQ:	equ		11H		        ; Control "Q"
-CTRLR:	equ		12H             ; Control "R"
-CTRLS:	equ		13H             ; Control "S"
-CTRLU:	equ		15H             ; Control "U"
-ESC:	equ		1BH             ; Escape
-DEL:	equ		7FH             ; Delete
+CTRLC:	equ	03H		; Control "C"
+CTRLG:	equ	07H		; Control "G"
+BKSP:	equ	08H		; Back space
+LF:	equ	0AH		; Line feed
+CS:	equ	0CH		; Clear screen
+CR:	equ	0DH		; Carriage return
+CTRLO:	equ	0FH		; Control "O"
+CTRLQ:	equ	11H		; Control "Q"
+CTRLR:	equ	12H		; Control "R"
+CTRLS:	equ	13H		; Control "S"
+CTRLU:	equ	15H		; Control "U"
+ESC:	equ	1BH		; Escape
+DEL:	equ	7FH		; Delete
 
 ; BASIC WORK SPACE LOCATIONS
 
-WRKSPC:	equ    0B000H             ; BASIC Work space
-USR:	equ    WRKSPC+3H           ; "USR (x)" jump
-OUTSUB:	equ    WRKSPC+6H           ; "OUT p,n"
-OTPORT:	equ    WRKSPC+7H           ; Port (p)
-DIVSUP:	equ    WRKSPC+9H           ; Division support routine
-DIV1:	equ    WRKSPC+0AH           ; <- Values
-DIV2:	equ    WRKSPC+0EH           ; <-   to
-DIV3:	equ    WRKSPC+12H           ; <-   be
-DIV4:	equ    WRKSPC+15H           ; <-inserted
-SEED:	equ    WRKSPC+17H           ; Random number seed
-LSTRND:	equ    WRKSPC+3AH           ; Last random number
-INPSUB:	equ    WRKSPC+3EH           ; #INP (x)" Routine
-INPORT:	equ    WRKSPC+3FH           ; PORT (x)
-NULLS:	equ    WRKSPC+41H           ; Number of nulls
-LWIDTH:	equ    WRKSPC+42H           ; Terminal width
-COMMAN:	equ    WRKSPC+43H           ; Width for commas
-NULFLG:	equ    WRKSPC+44H           ; Null after input DB flag
-CTLOFG:	equ    WRKSPC+45H           ; Control "O" flag
-LINESC:	equ    WRKSPC+46H           ; Lines counter
-LINESN:	equ    WRKSPC+48H           ; Lines number
-CHKSUM:	equ    WRKSPC+4AH           ; Array load/save check sum
-NMIFLG:	equ    WRKSPC+4CH           ; Flag for NMI break routine
-BRKFLG:	equ    WRKSPC+4DH           ; Break flag
-RINPUT:	equ    WRKSPC+4EH           ; Input reflection
-DCATLG:	equ    WRKSPC+51H           ; Disk Catalog reflection
-DLOAD:	equ    WRKSPC+54H           ; Disk Load reflection
-DSAVE:	equ    WRKSPC+57H           ; Disk Save reflection
-STRSPC:	equ    WRKSPC+5AH           ; Bottom of string space
-LINEAT:	equ    WRKSPC+5CH           ; Current line number
-BASTXT:	equ    WRKSPC+5EH           ; Pointer to start of program
-BUFFER:	equ    WRKSPC+61H           ; Input buffer
-STACK:	equ    WRKSPC+66H           ; Initial stack
-CURPOS:	equ    WRKSPC+0ABH          ; Character position on line
-LCRFLG:	equ    WRKSPC+0ACH          ; Locate/Create flag
-TYPE:	equ    WRKSPC+0ADH          ; Data type flag
-DATFLG:	equ    WRKSPC+0AEH          ; Literal statement flag
-LSTRAM:	equ    WRKSPC+0AFH          ; Last available RAM
-TMSTPT:	equ    WRKSPC+0B1H          ; Temporary string pointer
-TMSTPL:	equ    WRKSPC+0B3H          ; Temporary string pool
-TMPSTR:	equ    WRKSPC+0BFH          ; Temporary string
-STRBOT:	equ    WRKSPC+0C3H          ; Bottom of string space
-CUROPR:	equ    WRKSPC+0C5H          ; Current operator in EVAL
-LOOPST:	equ    WRKSPC+0C7H          ; First statement of loop
-DATLIN:	equ    WRKSPC+0C9H          ; Line of current DATA item
-FORFLG:	equ    WRKSPC+0CBH          ; "FOR" loop flag
-LSTBIN:	equ    WRKSPC+0CCH          ; Last DB entered
-READFG:	equ    WRKSPC+0CDH          ; Read/Input flag
-BRKLIN:	equ    WRKSPC+0CEH          ; Line of break
-NXTOPR:	equ    WRKSPC+0D0H          ; Next operator in EVAL
-ERRLIN:	equ    WRKSPC+0D2H          ; Line of error
-CONTAD:	equ    WRKSPC+0D4H          ; Where to CONTinue
-PROGND:	equ    WRKSPC+0D6H          ; End of program
-VAREND:	equ    WRKSPC+0D8H          ; End of variables
-ARREND:	equ    WRKSPC+0DAH          ; End of arrays
-NXTDAT:	equ    WRKSPC+0DCH          ; Next data item
-FNRGNM:	equ    WRKSPC+0DEH          ; Name of FN argument
-FNARG:	equ    WRKSPC+0E0H          ; FN argument value
-FPREG:	equ    WRKSPC+0E4H          ; Floating point register
-FPEXP:	equ    FPREG+3         ; Floating point exponent
-SGNRES:	equ    WRKSPC+0E8H     ; Sign of result
-PBUFF:	equ    WRKSPC+0E9H     ; Number print buffer
-MULVAL:	equ    WRKSPC+0F6H     ; Multiplier
-PROGST:	equ    WRKSPC+0F9H     ; Start of program text area
-STLOOK:	equ    WRKSPC+15DH     ; Start of memory test
+WRKSPC:	equ	0B000H		; BASIC Work space
+USR:	equ	WRKSPC+3H	; "USR (x)" jump
+OUTSUB:	equ	WRKSPC+6H	; "OUT p,n"
+OTPORT:	equ	WRKSPC+7H	; Port (p)
+DIVSUP:	equ	WRKSPC+9H	; Division support routine
+DIV1:	equ	WRKSPC+0AH	; <- Values
+DIV2:	equ	WRKSPC+0EH	; <-   to
+DIV3:	equ	WRKSPC+12H	; <-   be
+DIV4:	equ	WRKSPC+15H	; <-inserted
+SEED:	equ	WRKSPC+17H	; Random number seed
+LSTRND:	equ	WRKSPC+3AH	; Last random number
+INPSUB:	equ	WRKSPC+3EH	; #INP (x)" Routine
+INPORT:	equ	WRKSPC+3FH	; PORT (x)
+NULLS:	equ	WRKSPC+41H	; Number of nulls
+LWIDTH:	equ	WRKSPC+42H	; Terminal width
+COMMAN:	equ	WRKSPC+43H	; Width for commas
+NULFLG:	equ	WRKSPC+44H	; Null after input DB flag
+CTLOFG:	equ	WRKSPC+45H	; Control "O" flag
+LINESC:	equ	WRKSPC+46H	; Lines counter
+LINESN:	equ	WRKSPC+48H	; Lines number
+CHKSUM:	equ	WRKSPC+4AH	; Array load/save check sum
+NMIFLG:	equ	WRKSPC+4CH	; Flag for NMI break routine
+BRKFLG:	equ	WRKSPC+4DH	; Break flag
+RINPUT:	equ	WRKSPC+4EH	; Input reflection
+DCATLG:	equ	WRKSPC+51H	; Disk Catalog reflection
+DLOAD:	equ	WRKSPC+54H	; Disk Load reflection
+DSAVE:	equ	WRKSPC+57H	; Disk Save reflection
+STRSPC:	equ	WRKSPC+5AH	; Bottom of string space
+LINEAT:	equ	WRKSPC+5CH	; Current line number
+BASTXT:	equ	WRKSPC+5EH	; Pointer to start of program
+BUFFER:	equ	WRKSPC+61H	; Input buffer
+STACK:	equ	WRKSPC+66H	; Initial stack
+CURPOS:	equ	WRKSPC+0ABH	; Character position on line
+LCRFLG:	equ	WRKSPC+0ACH	; Locate/Create flag
+TYPE:	equ	WRKSPC+0ADH	; Data type flag
+DATFLG:	equ	WRKSPC+0AEH	; Literal statement flag
+LSTRAM:	equ	WRKSPC+0AFH	; Last available RAM
+TMSTPT:	equ	WRKSPC+0B1H	; Temporary string pointer
+TMSTPL:	equ	WRKSPC+0B3H	; Temporary string pool
+TMPSTR:	equ	WRKSPC+0BFH	; Temporary string
+STRBOT:	equ	WRKSPC+0C3H	; Bottom of string space
+CUROPR:	equ	WRKSPC+0C5H	; Current operator in EVAL
+LOOPST:	equ	WRKSPC+0C7H	; First statement of loop
+DATLIN:	equ	WRKSPC+0C9H	; Line of current DATA item
+FORFLG:	equ	WRKSPC+0CBH	; "FOR" loop flag
+LSTBIN:	equ	WRKSPC+0CCH	; Last DB entered
+READFG:	equ	WRKSPC+0CDH	; Read/Input flag
+BRKLIN:	equ	WRKSPC+0CEH	; Line of break
+NXTOPR:	equ	WRKSPC+0D0H	; Next operator in EVAL
+ERRLIN:	equ	WRKSPC+0D2H	; Line of error
+CONTAD:	equ	WRKSPC+0D4H	; Where to CONTinue
+PROGND:	equ	WRKSPC+0D6H	; End of program
+VAREND:	equ	WRKSPC+0D8H	; End of variables
+ARREND:	equ	WRKSPC+0DAH	; End of arrays
+NXTDAT:	equ	WRKSPC+0DCH	; Next data item
+FNRGNM:	equ	WRKSPC+0DEH	; Name of FN argument
+FNARG:	equ	WRKSPC+0E0H	; FN argument value
+FPREG:	equ	WRKSPC+0E4H	; Floating point register
+FPEXP:	equ	FPREG+3		; Floating point exponent
+SGNRES:	equ	WRKSPC+0E8H     ; Sign of result
+PBUFF:	equ	WRKSPC+0E9H     ; Number print buffer
+MULVAL:	equ	WRKSPC+0F6H     ; Multiplier
+PROGST:	equ	WRKSPC+0F9H     ; Start of program text area
+STLOOK:	equ	WRKSPC+15DH     ; Start of memory test
 
 ; BASIC ERROR CODE VALUES
 
-NF:	equ	00H             ; NEXT without FOR
-SN:	equ	02H             ; Syntax error
-RG:	equ	04H             ; RETURN without GOSUB
-OD:	equ	06H             ; Out of DATA
-FC:	equ	08H             ; Function call error
-OV:	equ	0AH             ; Overflow
-OM:	equ	0CH             ; Out of memory
-UL:	equ	0EH             ; Undefined line number
-BS:	equ	10H             ; Bad subscript
-DD:	equ	12H             ; Re-DIMensioned array
-DZ:	equ	14H             ; Division by zero (/0)
-ID:	equ	16H             ; Illegal direct
-TM:	equ	18H             ; Type miss-match
-OS:	equ	1AH             ; Out of string space
-LS:	equ	1CH             ; String too long
-ST:	equ	1EH             ; String formula too complex
-CN:	equ    20H             ; Can't CONTinue
-UF:	equ    22H             ; UnDEFined FN function
-MO:	equ    24H             ; Missing operand
-HX:	equ    26H             ; HEX error
-BN:	equ    28H             ; BIN error
+NF:	equ	00H		; NEXT without FOR
+SN:	equ	02H		; Syntax error
+RG:	equ	04H		; RETURN without GOSUB
+OD:	equ	06H		; Out of DATA
+FC:	equ	08H		; Function call error
+OV:	equ	0AH		; Overflow
+OM:	equ	0CH		; Out of memory
+UL:	equ	0EH		; Undefined line number
+BS:	equ	10H		; Bad subscript
+DD:	equ	12H		; Re-DIMensioned array
+DZ:	equ	14H		; Division by zero (/0)
+ID:	equ	16H		; Illegal direct
+TM:	equ	18H		; Type miss-match
+OS:	equ	1AH		; Out of string space
+LS:	equ	1CH		; String too long
+ST:	equ	1EH		; String formula too complex
+CN:	equ	20H		; Can't CONTinue
+UF:	equ	22H		; UnDEFined FN function
+MO:	equ	24H		; Missing operand
+HX:	equ	26H		; HEX error
+BN:	equ	28H		; BIN error
 
 COLD:   JP      STARTA          ; Jump for cold start
 WARM:   JP      WARMST          ; Jump for warm start
@@ -238,26 +239,25 @@ STARTB:
 	DW   ABPASS          ; Return integer in AB
 
 STARTA:
-		LD		A, $80			; 0x0000-0x7FFF = Card-2 Chip-0 Page-0
-		OUT		($FC),A
-		LD		A,(BASICSTARTED); Check the BASIC STARTED flag
-		CP		'Y'				; to see if this is power-up
-		JR		NZ,COLDSTART	; If not BASIC started then always do cold start
-CORW:
-		LD		HL,CLDMSG		; Cold/warm message
-	CALL    PRS          	; Output string if extra given
-	CALL    PROMPT          ; Get input with '?'
-	CALL    GETCHR          ; Get next character
-		AND		%11011111		; lower to uppercase
-		CP		'C'
-		JR		Z, COLDSTART
-		CP		'W'
-		JR		Z, WARM
-		JR		CORW
+;	LD	A,(BASICSTARTED); Check the BASIC STARTED flag
+;	CP	'Y'		; to see if this is power-up
+;	JR	Z, WARM
+;	JR	NZ,COLDSTART	; If not BASIC started then always do cold start
+;CORW:
+;	LD	HL,CLDMSG	; Cold/warm message
+;	CALL    PRS          	; Output string if extra given
+;	CALL    PROMPT          ; Get input with '?'
+;	CALL    GETCHR          ; Get next character
+;	AND	%11011111	; lower to uppercase
+;	CP	'C'
+;	JR	Z, COLDSTART
+;	CP	'W'
+;	JR	Z, WARM
+;	JR	CORW
 COLDSTART:
-		LD		A,'Y'			; Set the BASIC STARTED flag
-		LD		(BASICSTARTED),A
-		JR		STARTB			; Start BASIC COLD
+;	LD	A,'Y'		; Set the BASIC STARTED flag
+;	LD	(BASICSTARTED),A
+	JR	STARTB		; Start BASIC COLD
 CHECKWARM:
 
 CSTART:	LD      HL,WRKSPC       ; Start of workspace RAM
@@ -278,8 +278,8 @@ COPY:   LD      A,(DE)          ; Get source
 	CALL    PRNTCRLF        ; Output CRLF
 	LD      (BUFFER+72+1),A ; Mark end of buffer
 	LD      (PROGST),A      ; Initialise program area
-		LD      HL,0d000h       ; Try to use all RAM between
-		JP      SETTOP          ; Bootloader & Basic (52KB or so)
+	LD      HL,0d000h       ; Try to use all RAM between
+	JP      SETTOP          ; Bootloader & Basic (52KB or so)
 MSIZE:  LD      HL,MEMMSG       ; Point to message
 	CALL    PRS             ; Output "Memory size"
 	CALL    PROMPT          ; Get input with '?'
@@ -759,7 +759,7 @@ GETCMD: LD      HL,-1           ; Flag direct mode
 	PUSH    AF              ; Save Carry status
 	CALL    ATOH            ; Get line number into DE
 	PUSH    DE              ; Save line number
-	CALL    CRUNCH          ; Tokenise rest of line
+	CALL    CRUNCH	; Tokenise rest of line
 	LD      B,A             ; Length of tokenised line
 	POP     DE              ; Restore line number
 	POP     AF              ; Restore Carry
@@ -803,7 +803,7 @@ INEWLN: POP     DE              ; Get address of line,
 	POP     HL              ; Restore new end
 	LD      (PROGND),HL     ; Update end of program pointer
 	EX      DE,HL           ; Get line to move up in HL
-	LD      (HL),H          ; Save MSB
+	LD      (HL),H	; Save MSB
 	POP     DE              ; Get new line number
 	INC     HL              ; Skip pointer
 	INC     HL
@@ -979,7 +979,7 @@ NOSPC:  INC     HL              ; Next DB
 NOCHNG: CP      C               ; Same as in buffer ?
 	JP      Z,NXTBYT        ; Yes - keep testing
 	POP     HL              ; Get back start of DW
-	JP      SEARCH          ; Look at next DW
+	JP      SEARCH	; Look at next DW
 
 MATCH:  LD      C,B             ; DW found - Save token value
 	POP     AF              ; Throw away return
@@ -1149,6 +1149,8 @@ DINPOS: POP     AF              ; Restore character
 	RET
 
 CLOTST: CALL    GETINP          ; Get input character
+	CP	_key_enter
+	JR	z,_fix_enter
 ;        AND     01111111B       ; Strip bit 7
 	CP      CTRLO           ; Is it control "O"?
 	RET     NZ              ; No don't flip flag
@@ -1156,6 +1158,10 @@ CLOTST: CALL    GETINP          ; Get input character
 	CPL                     ; Flip it
 	LD      (CTLOFG),A      ; Put it back
 	XOR     A               ; Null character
+	RET
+	
+_fix_enter:
+	LD	A, CR
 	RET
 
 LIST:   CALL    ATOH            ; ASCII number to DE
@@ -1236,7 +1242,7 @@ RSLNBK: LD      HL,(LINESN)     ; Get LINES number
 	LD      (LINESC),HL     ; Reset LINES counter
 	JP      BRKRET          ; Go and output "Break"
 
-FOR:    LD      A,64H           ; Flag "FOR" assignment
+FOR:    LD      A,64H	; Flag "FOR" assignment
 	LD      (FORFLG),A      ; Save "FOR" flag
 	CALL    LET             ; Set up initial index
 	POP     BC              ; Drop RETurn address
@@ -2081,7 +2087,7 @@ EVLPAR: CALL    OPNPAR          ; Evaluate expression in "()"
 	DB   ")"
 	RET
 
-MINUS:  LD      D,7DH           ; '-' precedence
+MINUS:  LD      D,7DH	; '-' precedence
 	CALL    EVAL1           ; Evaluate until prec' break
 	LD      HL,(NXTOPR)     ; Get next operator address
 	PUSH    HL              ; Save next operator address
@@ -2183,7 +2189,7 @@ TSTRED: LD      HL,CMPLOG       ; Logical compare routine
 	LD      A,D             ; Get last precedence value
 	RLA                     ; Times 2 plus carry
 	LD      E,A             ; To E
-	LD      D,64H           ; Relational precedence
+	LD      D,64H	; Relational precedence
 	LD      A,B             ; Get current precedence
 	CP      D               ; Compare with last
 	RET     NC              ; Eval if last was rel' or log'
@@ -2246,7 +2252,7 @@ CMPRES: INC     A               ; Increment current value
 	SBC     A,A             ; 00 - Equal , FF - Different
 	JP      FLGREL          ; Set current value & continue
 
-EVNOT:  LD      D,5AH           ; Precedence value for "NOT"
+EVNOT:  LD      D,5AH	; Precedence value for "NOT"
 	CALL    EVAL1           ; Eval until precedence break
 	CALL    TSTNUM          ; Make sure it's a number
 	CALL    DEINT           ; Get integer -32768 - 32767
@@ -3262,7 +3268,7 @@ FPROND: INC     E               ; Round LSB
 	RET     NZ              ; Return if ok
 	INC     C               ; Round MSB
 	RET     NZ              ; Return if ok
-	LD      C,80H           ; Set normal value
+	LD      C,80H	; Set normal value
 	INC     (HL)            ; Increment exponent
 	RET     NZ              ; Return if ok
 	JP      OVERR           ; Overflow error
@@ -3512,7 +3518,7 @@ ADDEXP: LD      A,B             ; Get exponent of dividend
 	XOR     B
 	LD      A,B             ; Get exponent
 	JP      P,OVTST2        ; Positive - Test for overflow
-	ADD     A,80H           ; Add excess 128
+	ADD     A,80H	; Add excess 128
 	LD      (HL),A          ; Save new exponent
 	JP      Z,POPHRT        ; Zero - Result zero
 	CALL    SIGNS           ; Set MSBs and sign of result
@@ -4024,7 +4030,7 @@ EXP:    CALL    STAKFP          ; Put value on stack
 	CP      80H+8           ; Is it in range?
 	JP      NC,OVTST1       ; No - Test for overflow
 	CALL    INT             ; Get INT of FPREG
-	ADD     A,80H           ; For excess 128
+	ADD     A,80H	; For excess 128
 	ADD     A,2             ; Exponent > 126?
 	JP      C,OVTST1        ; Yes - Test for overflow
 	PUSH    AF              ; Save scaling factor
@@ -4230,8 +4236,7 @@ ATNTAB: DB   9                       ; Table used by ATN
 
 ARET:   RET                     ; A RETurn instruction
 
-GETINP: 
-	JP _getkey_wait
+GETINP: equ	_getkey_wait
 
 CLS: 
 	LD      A,CS            ; ASCII Clear screen
@@ -4453,14 +4458,10 @@ JJUMP1:
 	LD      IX,-1           ; Flag cold start
 	JP      CSTART          ; Go and initialise
 
-MONOUT: 
-	PUSH	AF
-	CALL 		_writechar
-	POP	AF
-	RET
+MONOUT: equ	_writechar
 
 MONITR: 
-	JP      014d5h           ; Restart (Normally Monitor Start)
+	JP      014d5H		; Restart (Normally Monitor Start)
 
 INITST: LD      A,0             ; Clear break flag
 	LD      (BRKFLG),A
@@ -4479,11 +4480,10 @@ OUTNCR: CALL    OUTC            ; Output character in A
 	JP      PRNTCRLF        ; Output CRLF
 
 		
-BASICSTARTED:
-		DB	0
+;BASICSTARTED:
+;		DB	0
 
-_CODE_END: equ $
-_CODE_SIZE: equ _CODE_END - _CODE_START
+_code_end:
 ;; End of Main Application
 
 ;; Fill to end of file
