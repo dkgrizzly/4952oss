@@ -208,7 +208,7 @@ _real_exit:
 
 	jp 014d5h				; Return to main menu.
 
-include "lib/delay.asm"
+include "lib/string.asm"
 include "lib/screen.asm"
 include "lib/printf.asm"
 include "lib/keyb.asm"

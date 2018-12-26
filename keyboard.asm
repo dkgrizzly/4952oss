@@ -220,8 +220,7 @@ _check_next_col:
 	ld (_text_attr), a
 	ret
 
-
-include "lib/delay.asm"
+include "lib/string.asm"
 include "lib/screen.asm"
 include "lib/printf.asm"
 include "lib/keyb.asm"

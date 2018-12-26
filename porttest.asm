@@ -245,6 +245,7 @@ _next_port:
 	pop hl					; And move on.
 	jp _next_port
 
+include "lib/string.asm"
 include "LIB/screen.asm"
 include "LIB/printf.asm"
 include "LIB/keyb.asm"

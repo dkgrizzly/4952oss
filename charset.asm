@@ -289,6 +289,7 @@ _attr_bit:
 
 include "lib/delay.asm"
 include "lib/screen.asm"
+include "lib/string.asm"
 include "lib/printf.asm"
 include "lib/keyb.asm"
 

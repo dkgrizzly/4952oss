@@ -11,12 +11,13 @@ _scrattr_inverse:	equ 008h
 _scrattr_graphics:	equ 080h
 
 _clear_screen:
-	push hl
 	push de
+	push hl
 	push bc
 	push af
 	ld de, 04000h			; Screen Buffer
-	ld hl, 04000h
+	push de
+	pop hl
 	ld bc, 003feh
 	ld a, 020h			; ' '
 	ld (hl), a
@@ -31,47 +32,127 @@ _clear_screen:
 	ld (_cur_x),a
 	pop af
 	pop bc
-	pop de
 	pop hl
+	pop de
 	ret
 
 _backspace:
-	push af
 	ld a,(_cur_x)
 	dec a
 	jr nz,_wrcurx
 	ld a,01h
 _wrcurx:
 	ld (_cur_x),a
-	pop af
-	ret
-
-; Print string at _cur_y, _cur_x, using _text_attr
-; HL = Message (zero-terminated)
-_writestring:
-	ld a,(hl)			; Get character at HL
-	or a				; Set flags
-	ret z				; Return if zero
-	call _writechar			; Print character from A
-	inc hl				; Advance
-	jr _writestring			; Loop
+	ld a, 020h
+	call _putchar_raw
+	jp _updatecursor
 
 ; Print char at _cur_y, _cur_x, using _text_attr
 ; A = Character, AF is clobbered by function
 _writechar:
+	push af				; Store clobbered registers
+	ld a, (_cursor_enabled)
+	or a
+	jr z, _no_cursor
+
+	push de
+	push hl
+
+	call _locxy
+	inc hl				;
+	ld a,(_text_attr)		;
+	ld (hl),a			; Text Attribute
+
+	pop hl				; Restore clobbered registers
+	pop de				;
+_no_cursor:
+	pop af
+
 	cp 00ah				; Newline?
-	jr z,_advance_line_nl		;
+	jr z,_handle_nl			;
 	cp 00dh				; Carriage Return?
-	jr z,_advance_line		;
+	jr z,_handle_cr			;
 	cp 00ch				; Clear Screen?
 	jr z,_clear_screen		;
 	cp 008h				; Backspace?
 	jr z,_backspace			;
 _writechar_raw:
+	call _putchar_raw
+	jr _advance_cursor
+
+_updatecursor:
+	ld a, (_cursor_enabled)
+	or a
+	ret z
+
 	push de				; Store clobbered registers
 	push hl				;
-	push af				;
 
+	call _locxy
+	inc hl				;
+
+	ld a,(hl)			;
+	or _scrattr_flash2
+	ld (hl),a			; Text Attribute
+
+	pop hl				; Restore clobbered registers
+	pop de				;
+	ret
+
+_advance_cursor:
+	ld a,(_cur_x)
+	inc a				; Advance cursor
+	ld (_cur_x),a
+	cp 021h				; Should we wrap?
+	jr c,_updatecursor		; nope
+
+	jr _advance_line
+
+_handle_cr:
+	ld a,001h			; Wrap to same line
+	ld (_cur_x),a
+	jr _updatecursor
+
+_advance_line:
+	ld a,001h			; Wrap to next line
+	ld (_cur_x),a
+_handle_nl:
+	ld a,(_cur_y)			; Advance to new line
+	inc a
+	ld (_cur_y),a
+	cp 11h
+	jr c,_updatecursor
+
+	push hl
+	push de
+	push bc
+	; Scroll buffer
+	ld hl, 04040h
+	ld de, 04000h
+	ld bc, 003c0h
+	ldir
+
+	; Clear last line
+	ld de, 043c0h
+	ld hl, 043c0h
+	ld a, ' '
+	ld (hl),a
+	inc hl
+	ld a, _scrattr_ascii_n
+	ld (hl),a
+	inc hl
+	ex de, hl
+	ld bc, 003eh
+	ldir
+	pop bc
+	pop de
+	pop hl
+	
+	ld a,010h			; We ran out of lines!
+	ld (_cur_y),a			; loop (for now)
+	jr _updatecursor				;
+
+_locxy:
 	ld h,000h
 	ld a,(_cur_y)			; Line
 	ld l,a
@@ -94,6 +175,14 @@ _writechar_raw:
 
 	ld de,04000h			; Screen Buffer
 	add hl,de			;
+	ret
+
+_putchar_raw:
+	push de				; Store clobbered registers
+	push hl				;
+	push af				;
+
+	call _locxy
 
 	pop af				; 
 	ld (hl),a			; Text Character
@@ -104,61 +193,10 @@ _writechar_raw:
 
 	pop hl				; Restore clobbered registers
 	pop de				;
+	ret
 
-_advance_cursor:
-	ld a,(_cur_x)
-	inc a				; Advance cursor
-	ld (_cur_x),a
-	cp 021h				; Should we wrap?
-	ret m				; nope
-
-	jr _advance_line
-
-_advance_line_nl:			; Newline only advances if X != 1
-	ld a,(_cur_x)			; else we assume last char was CR?
-	cp 001h
-	ret z
-
-_advance_line:
-	ld a,001h			; Wrap to next line
-	ld (_cur_x),a
-	ld a,(_cur_y)
-	inc a
-	ld (_cur_y),a
-	cp 11h
-	ret m
-
-	push hl
-	push de
-	push bc
-	; Scroll buffer
-	ld hl, 04040h
-	ld de, 04000h
-	ld bc, 003c0h
-	ldir
-	ld de, 043c0h
-	ld bc, 0003eh
-
-	; Clear last line
-	ld de, 043c0h
-	ld hl, 043c0h
-	ld a, ' '
-	ld (hl),a
-	inc hl
-	ld a, 083h
-	ld (hl),a
-	inc hl
-	ex de, hl
-	ld bc, 003eh
-	ldir
-	pop bc
-	pop de
-	pop hl
-	
-	ld a,010h			; We ran out of lines!
-	ld (_cur_y),a			; loop (for now)
-	ret				;
-
+_cursor_enabled:
+	defb 000h
 _cur_x:
 	defb 001h
 _cur_y:
