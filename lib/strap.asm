@@ -30,6 +30,8 @@ __init:
 	ld bc,_splash_end-_splash_start	;
 	ldir				;
 
+
+;	jp _launch_app			; Use this to make an autostart
 	jp _splash_start		; Run main menu stub
 
 __0a196h:
@@ -44,7 +46,7 @@ __0a196h:
 	ld (0110ch),a			;
 	ld hl,0d966h			;
 	ld (0110dh),hl			;
-	call 01109h			;
+	call 01109h			; Main Menu handler
 
 __0a1b3h:
 	ld hl,0a800h			;
@@ -58,7 +60,7 @@ __0a1b3h:
 	ld (0110ch),a			;
 	ld hl,0d966h			;
 	ld (0110dh),hl			;
-	call 01109h			;
+	call 01109h			; Main Menu Handler
 
 	jp __0a1b3h			; Loop Forever
 	ret				; How can we ever get here?
@@ -201,7 +203,7 @@ _splash_start:
 	ld bc,00200h			; now that it is patched
 	ldir				;
 
-	ld a,002h			; Load Page 2 (10046 ROM)
+	ld a,002h			; Load Page 2
 	call 00e60h			; Patched to 2d02 -> 00e60h
 
 	jp 014d5h			; Return via call -> 02e32h -> 014d5h

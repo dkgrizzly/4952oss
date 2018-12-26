@@ -293,6 +293,7 @@ _read_page:
 ;	ei
 	ret
 
+include "lib/string.asm"
 include "lib/screen.asm"
 include "lib/printf.asm"
 include "lib/keyb.asm"
