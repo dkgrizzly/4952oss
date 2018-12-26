@@ -25,17 +25,17 @@ __init:
 	di				; Disable Interrupts
 	call _load_dll_stub		; Call our dynamic linker
 
-	ld de,02000h			;
+	ld de,_splash_start		;
 	ld hl,0a800h			; Load menu data & stubs
-	ld bc,00200h			;
+	ld bc,_splash_end-_splash_start	;
 	ldir				;
 
-	jp 02000h			; Run main menu stub
+	jp _splash_start		; Run main menu stub
 
 __0a196h:
 	ld hl,0a800h			;
-	ld de,02000h			; Load menu data & stubs again?
-	ld bc,00200h			;
+	ld de,_splash_start		; Load menu data & stubs again?
+	ld bc,_splash_end-_splash_start	;
 	ldir				;
 
 	ld hl,07621h			;
@@ -48,8 +48,8 @@ __0a196h:
 
 __0a1b3h:
 	ld hl,0a800h			;
-	ld de,02000h			; Load menu data & stubs again?
-	ld bc,00200h			;
+	ld de,_splash_start		; Load menu data & stubs again?
+	ld bc,_splash_end-_splash_start	;
 	ldir				;
 
 	ld hl,0761ch			;
@@ -180,6 +180,7 @@ __dll_fixups_end:
 ;; Relocated at runtime from 0a800h to 02000h
 	org 02000h
 	seek 00800h
+_splash_start:
 
 	call 01543h			; Patched to 2d32 -> 01543h
 	call 00fe9h			; Patched to 2e6e -> 00fe9h

@@ -18,7 +18,6 @@ _clear_screen:
 	ld de, 04000h			; Screen Buffer
 	ld hl, 04000h
 	ld bc, 003feh
-_clear_line:
 	ld a, 020h			; ' '
 	ld (hl), a
 	inc hl
@@ -27,6 +26,9 @@ _clear_line:
 	inc hl
 	ex de,hl
 	ldir
+	ld a, 1
+	ld (_cur_y),a
+	ld (_cur_x),a
 	pop af
 	pop bc
 	pop de
@@ -136,11 +138,23 @@ _advance_line:
 	ldir
 	ld de, 043c0h
 	ld bc, 0003eh
-	push de
-	pop hl
-	push af
-	call _clear_line
 
+	; Clear last line
+	ld de, 043c0h
+	ld hl, 043c0h
+	ld a, ' '
+	ld (hl),a
+	inc hl
+	ld a, 083h
+	ld (hl),a
+	inc hl
+	ex de, hl
+	ld bc, 003eh
+	ldir
+	pop bc
+	pop de
+	pop hl
+	
 	ld a,010h			; We ran out of lines!
 	ld (_cur_y),a			; loop (for now)
 	ret				;

@@ -70,9 +70,10 @@ _launch_app:
 
 	DW _code_end
 ;; End of menu section
+_splash_end:
 
 ;; Main Application
-	org 2160h
+;;	org 2160h
 	seek 0a00h
 _code_start:
 
@@ -87,15 +88,14 @@ _app_main:
 	ld (_cur_x), a
 
 _main_loop:
-	;di
-	;ld a,00fh			; access desired memory bank
-	;out (020h),a			;
+	di
+	ld a,00eh			; access desired memory bank
+	out (020h),a			;
 
 	ld SP, 0f000h
 	jp COLD
 
-_return_to_rom:	
-	jp 014d5h				; Return to main menu.
+_return_to_rom:	equ 014d5h				; Return to main menu.
 
 include "lib/screen.asm"
 include "lib/keyb.asm"
@@ -140,7 +140,7 @@ DEL:	equ	7FH		; Delete
 
 ; BASIC WORK SPACE LOCATIONS
 
-WRKSPC:	equ	0B000H		; BASIC Work space
+WRKSPC:	equ	08000H		; BASIC Work space
 USR:	equ	WRKSPC+3H	; "USR (x)" jump
 OUTSUB:	equ	WRKSPC+6H	; "OUT p,n"
 OTPORT:	equ	WRKSPC+7H	; Port (p)
@@ -231,6 +231,7 @@ BN:	equ	28H		; BIN error
 
 COLD:   JP      STARTA          ; Jump for cold start
 WARM:   JP      WARMST          ; Jump for warm start
+STARTA:
 STARTB: 
 	LD      IX,0            ; Flag cold start
 	JP      CSTART          ; Jump to initialise
@@ -238,7 +239,7 @@ STARTB:
 	DW   DEINT           ; Get integer -32768 to 32767
 	DW   ABPASS          ; Return integer in AB
 
-STARTA:
+;STARTA:
 ;	LD	A,(BASICSTARTED); Check the BASIC STARTED flag
 ;	CP	'Y'		; to see if this is power-up
 ;	JR	Z, WARM
@@ -254,10 +255,10 @@ STARTA:
 ;	CP	'W'
 ;	JR	Z, WARM
 ;	JR	CORW
-COLDSTART:
+;COLDSTART:
 ;	LD	A,'Y'		; Set the BASIC STARTED flag
 ;	LD	(BASICSTARTED),A
-	JR	STARTB		; Start BASIC COLD
+;	JR	STARTB		; Start BASIC COLD
 CHECKWARM:
 
 CSTART:	LD      HL,WRKSPC       ; Start of workspace RAM
@@ -278,7 +279,7 @@ COPY:   LD      A,(DE)          ; Get source
 	CALL    PRNTCRLF        ; Output CRLF
 	LD      (BUFFER+72+1),A ; Mark end of buffer
 	LD      (PROGST),A      ; Initialise program area
-	LD      HL,0d000h       ; Try to use all RAM between
+	LD      HL,00000h       ; Try to use all RAM between
 	JP      SETTOP          ; Bootloader & Basic (52KB or so)
 MSIZE:  LD      HL,MEMMSG       ; Point to message
 	CALL    PRS             ; Output "Memory size"
@@ -4461,7 +4462,7 @@ JJUMP1:
 MONOUT: equ	_writechar
 
 MONITR: 
-	JP      014d5H		; Restart (Normally Monitor Start)
+	JP      014d5h		; Restart (Normally Monitor Start)
 
 INITST: LD      A,0             ; Clear break flag
 	LD      (BRKFLG),A
