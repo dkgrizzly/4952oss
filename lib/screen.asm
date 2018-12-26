@@ -134,6 +134,7 @@ _advance_line:
 	ld de, 04000h
 	ld bc, 003c0h
 	ldir
+	ld de, 043c0h
 	ld bc, 0003eh
 	push de
 	pop hl
