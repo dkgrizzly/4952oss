@@ -72,7 +72,7 @@ _splash_end:
 ;; End of menu section
 
 ;; Main Application
-	org 2160h
+	org 2200h
 	seek 0a00h
 _code_start:
 
@@ -160,7 +160,7 @@ _app_main:
 
 	call _update_blocky
 
-	ld a, 083h			; Normal Text
+	ld a, _scrattr_ascii_n		; Normal Text
 	ld (_text_attr), a
 	ld a, 001h			; Line 15
 	ld (_cur_y), a
@@ -179,7 +179,7 @@ _main_loop:
 _exit_prompt:
 	call _clear_screen
 
-	ld a, 083h				; Normal Text
+	ld a, _scrattr_ascii_n			; Normal Text
 	ld (_text_attr), a
 	ld a, 008h				; Line 1 (Top)
 	ld (_cur_y), a

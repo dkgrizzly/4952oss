@@ -166,7 +166,7 @@ __dll_fixups:
 	defw 02d02h, 00000h, 0a835h
 	defw 02e66h, 00003h, 0a868h
 	defw 02e66h, 00004h, 0a86eh
-	defw 02d02h, 00000h, 0a946h
+;	defw 02d02h, 00000h, 0a946h
 	defw 02eceh, 00003h, 0a1a8h
 	defw 02e54h, 00000h, 0a1abh
 	defw 02eceh, 00004h, 0a1aeh
