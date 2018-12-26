@@ -128,6 +128,7 @@ _gk_shift:
 	jr nc, _gk_shift_alpha
 	cp 030h
 	jr z, _gk_shift_0					; Zero becomes underscore
+	cp 02ch
 	jr nc, _gk_shift_num					; 1 thru ? become ! thru /
 
 	jr _gk_done
