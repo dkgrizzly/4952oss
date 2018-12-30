@@ -10,6 +10,13 @@ _scrattr_flash2:	equ 010h
 _scrattr_inverse:	equ 008h
 _scrattr_graphics:	equ 080h
 
+_scrfont_ascii:		equ 08300h
+_scrfont_ebcdic:	equ 04300h
+_scrfont_baudot:	equ 083c0h
+_scrfont_ebcd:		equ 0c300h
+_scrfont_transcode:	equ 0c380h
+_scrfont_ipars:		equ 0c3c0h
+
 _clear_screen:
 	push de
 	push hl
