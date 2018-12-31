@@ -199,7 +199,7 @@ bfi_fde:                                ; BF Fetch-Decode-Execute
 bfi_error:
     ret
 
-org 0c000h
+org 03000h
 BF_ARRAY: DS $0C00                      ; 3 KB of memory
 BF_PTR: DS $02                          ; 16 bit pointer
 BF_CHAR: DS $02
