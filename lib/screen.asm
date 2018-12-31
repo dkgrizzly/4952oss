@@ -154,7 +154,7 @@ _handle_nl:
 	pop bc
 	pop de
 	pop hl
-	
+
 	ld a,010h			; We ran out of lines!
 	ld (_cur_y),a			; loop (for now)
 	jr _updatecursor				;
@@ -177,7 +177,7 @@ _locxy:
 	ld a,(_cur_x)			; Column
 	dec a				; --
 	add a,a				; <<
-	ld l,a				; 
+	ld l,a				;
 	add hl,de			;
 
 	ld de,04000h			; Screen Buffer
@@ -191,7 +191,7 @@ _putchar_raw:
 
 	call _locxy
 
-	pop af				; 
+	pop af				;
 	ld (hl),a			; Text Character
 	inc hl				;
 
